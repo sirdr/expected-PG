@@ -22,26 +22,43 @@ class Policy(nn.Module):
         self.gamma = config.gamma
         self.sigma = config.sigma
 
+        self.optimizer = optim.Adam(self.parameters(), lr=config.policy_lr)
+
         # Episode policy and reward history
         self.reward_episode = []
         # Overall reward and loss history
         self.reward_history = []
         self.loss_history = []
 
+    '''
+        Estimate the mean of a Gaussian (continuous) stochastic policy.
+    '''
     def forward(self, state):
         out = self.l1(state)
-        out = F.relu(out)
+        # out = F.relu(out)
         out = self.l2(out)
-        out = self.action_space_low + (self.action_space_high - self.action_space_low) * F.sigmoid(out)
+        # out = self.action_space_low + (self.action_space_high - self.action_space_low) * F.sigmoid(out)
         return out
 
     def get_action(self, state):
         state = torch.from_numpy(state).type(torch.FloatTensor)
         action_mean = self.forward(Variable(state))
         m = torch.distributions.normal.Normal(action_mean, self.sigma)
+        # print(action_mean)
         sample = m.sample().numpy()
-        print(sample)
         return np.clip(sample, self.action_space_low.numpy(), self.action_space_high.numpy())
 
-    def apply_gradient(states, critic):
+    def apply_gradient(self, states, critic):
+        self.optimizer.zero_grad()
+        n_states = len(states)
+        for param in self.parameters():
+            param_grad = np.zeros(param.shape)
+            for state in states:
+                prob = lambda a : 1./(2*np.pi*self.sigma**2)**(self.action_space/2.) * torch.exp(-(torch.from_numpy(a).float() - self.forward(torch.from_numpy(state).float()))**2 / (2*self.sigma**2))
+                f = lambda a : (torch.autograd.grad(prob(a), param)[0] * critic(torch.from_numpy(state).float(), torch.from_numpy(a).float())).detach().numpy()
+                # print(prob(self.get_action(state)))
+                param_grad += 1./n_states * f(self.get_action(state))
+            param.grad = torch.from_numpy(-param_grad).float()
+            # print(param.grad)
+        self.optimizer.step()
         return
