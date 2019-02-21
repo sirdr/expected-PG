@@ -41,7 +41,8 @@ for ep in range(1000):
         states.append(observation)
         actions.append(action)
         rewards.append(reward)
-        policy.apply_gradient2(observation, qcritic, vcritic, ep_length)
+        # policy.apply_gradient2(observation, qcritic, vcritic, ep_length)
+        policy.apply_gradient3(observation, action, qcritic, vcritic, ep_length)
         ep_length += 1
         if(len(actions) >= 2):
             qcritic.apply_gradient(states[-2], actions[-2], rewards[-1], states[-1], actions[-1])

@@ -70,11 +70,26 @@ class Policy(nn.Module):
             param_grad = np.zeros(param.shape)
             prob = lambda a : 1./(2*np.pi*self.sigma**2)**(self.action_space/2.) * torch.exp(-torch.norm((torch.from_numpy(a).float() - self.forward(torch.from_numpy(state).float())))**2 / (2*self.sigma**2))
             # f = lambda a : (prob(a) * torch.autograd.grad(torch.log(prob(a) + .0001), param)[0] * (qcritic(torch.from_numpy(state).float(), torch.from_numpy(a).float()) - vcritic(torch.from_numpy(state).float()))).detach().numpy()
-            f = lambda a : (torch.autograd.grad(prob(a), param)[0] * (qcritic(torch.from_numpy(state).float(), torch.from_numpy(a).float()) - vcritic(torch.from_numpy(state).float()))).detach().numpy()
+            # f = lambda a : (torch.autograd.grad(prob(a), param)[0] * (qcritic(torch.from_numpy(state).float(), torch.from_numpy(a).float()) - vcritic(torch.from_numpy(state).float()))).detach().numpy()
             # param_grad += (self.gamma**step) * integration.compute_integral(f, self.action_space_low, self.action_space_high, param.shape, 0.1)
             # print(type((self.gamma**step) * integration.compute_integral_asr(f, self.action_space_low.numpy(), self.action_space_high.numpy(), 0.1)))
             param_grad += (self.gamma**step) * integration.compute_integral_asr(f, self.action_space_low.numpy(), self.action_space_high.numpy(), 0.1)
             param.grad = torch.from_numpy(-param_grad).float()
+            # print(param.grad)
+        self.optimizer.step()
+        return
+
+    def apply_gradient3(self, state, action, qcritic, vcritic, step):
+        self.optimizer.zero_grad()
+        for param in self.parameters():
+            param_grad = np.zeros(param.shape)
+            prob = lambda a : 1./(2*np.pi*self.sigma**2)**(self.action_space/2.) * torch.exp(-torch.norm((torch.from_numpy(a).float() - self.forward(torch.from_numpy(state).float())))**2 / (2*self.sigma**2))
+            # f = lambda a : (prob(a) * torch.autograd.grad(torch.log(prob(a) + .0001), param)[0] * (qcritic(torch.from_numpy(state).float(), torch.from_numpy(a).float()) - vcritic(torch.from_numpy(state).float()))).detach().numpy()
+            # f = lambda a : (torch.autograd.grad(prob(a), param)[0] * (qcritic(torch.from_numpy(state).float(), torch.from_numpy(a).float()) - vcritic(torch.from_numpy(state).float()))).detach().numpy()
+            # param_grad += (self.gamma**step) * integration.compute_integral(f, self.action_space_low, self.action_space_high, param.shape, 0.1)
+            # print(type((self.gamma**step) * integration.compute_integral_asr(f, self.action_space_low.numpy(), self.action_space_high.numpy(), 0.1)))
+            param_grad = (self.gamma ** step) * (prob(action) * torch.autograd.grad(torch.log(prob(action) + .0001), param)[0] * (qcritic(torch.from_numpy(state).float(), torch.from_numpy(action).float()) - vcritic(torch.from_numpy(state).float())))
+            param.grad = -param_grad
             # print(param.grad)
         self.optimizer.step()
         return
