@@ -1,5 +1,6 @@
 import scipy.integrate as integrate
 import numpy as np
+import numba
 
 
 #def f(*args):
@@ -35,7 +36,7 @@ import numpy as np
 #        mat[2][i]= a+3
 #    return mat
 
-
+@numba.jit
 def compute_integral(f, low, high, shape, prec):
     integral = np.zeros(shape)
     a_range = np.linspace(low, high, (high-low)/prec)

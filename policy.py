@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.autograd import Variable
+import integration
 
 '''
     Policy is trained using any policy gradient method.
@@ -16,8 +17,8 @@ class Policy(nn.Module):
         self.action_space_high = torch.from_numpy(env.action_space.high)
         self.action_space_low = torch.from_numpy(env.action_space.low)
 
-        self.l1 = nn.Linear(self.state_space, 40)
-        self.l2 = nn.Linear(40, self.action_space)
+        self.l1 = nn.Linear(self.state_space, 10)
+        self.l2 = nn.Linear(10, self.action_space)
 
         self.gamma = config.gamma
         self.sigma = config.sigma
@@ -35,7 +36,7 @@ class Policy(nn.Module):
     '''
     def forward(self, state):
         out = self.l1(state)
-        # out = F.relu(out)
+        out = F.relu(out)
         out = self.l2(out)
         # out = self.action_space_low + (self.action_space_high - self.action_space_low) * F.sigmoid(out)
         return out
@@ -48,16 +49,28 @@ class Policy(nn.Module):
         sample = m.sample().numpy()
         return np.clip(sample, self.action_space_low.numpy(), self.action_space_high.numpy())
 
-    def apply_gradient(self, states, critic):
+    # def apply_gradient(self, states, critic, ep):
+    #     self.optimizer.zero_grad()
+    #     n_states = len(states)
+    #     for param in self.parameters():
+    #         param_grad = np.zeros(param.shape)
+    #         for state in states:
+    #             prob = lambda a : 1./(2*np.pi*self.sigma**2)**(self.action_space/2.) * torch.exp(-torch.norm((torch.from_numpy(a).float() - self.forward(torch.from_numpy(state).float())))**2 / (2*self.sigma**2))
+    #             f = lambda a : (torch.autograd.grad(prob(a), param)[0] * critic(torch.from_numpy(state).float(), torch.from_numpy(a).float())).detach().numpy()
+    #             param_grad += 1./n_states * integration.compute_integral(f, self.action_space_low, self.action_space_high, param.shape, 0.1)
+    #         param.grad = torch.from_numpy(-param_grad).float()
+    #         print(param.grad)
+    #     self.optimizer.step()
+    #     return
+
+    def apply_gradient2(self, state, qcritic, vcritic, step):
         self.optimizer.zero_grad()
-        n_states = len(states)
         for param in self.parameters():
             param_grad = np.zeros(param.shape)
-            for state in states:
-                prob = lambda a : 1./(2*np.pi*self.sigma**2)**(self.action_space/2.) * torch.exp(-(torch.from_numpy(a).float() - self.forward(torch.from_numpy(state).float()))**2 / (2*self.sigma**2))
-                f = lambda a : (torch.autograd.grad(prob(a), param)[0] * critic(torch.from_numpy(state).float(), torch.from_numpy(a).float())).detach().numpy()
-                # print(prob(self.get_action(state)))
-                param_grad += 1./n_states * f(self.get_action(state))
+            prob = lambda a : 1./(2*np.pi*self.sigma**2)**(self.action_space/2.) * torch.exp(-torch.norm((torch.from_numpy(a).float() - self.forward(torch.from_numpy(state).float())))**2 / (2*self.sigma**2))
+            # f = lambda a : (prob(a) * torch.autograd.grad(torch.log(prob(a) + .0001), param)[0] * (qcritic(torch.from_numpy(state).float(), torch.from_numpy(a).float()) - vcritic(torch.from_numpy(state).float()))).detach().numpy()
+            f = lambda a : (torch.autograd.grad(prob(a), param)[0] * qcritic(torch.from_numpy(state).float(), torch.from_numpy(a).float()) - vcritic(torch.from_numpy(state).float())).detach().numpy()
+            param_grad += (self.gamma**step) * integration.compute_integral(f, self.action_space_low, self.action_space_high, param.shape, 0.1)
             param.grad = torch.from_numpy(-param_grad).float()
             # print(param.grad)
         self.optimizer.step()
