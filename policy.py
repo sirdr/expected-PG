@@ -6,23 +6,26 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 import pdb
 import integration
+import random
 
 '''
     Policy is trained using any policy gradient method.
 '''
 class Policy(nn.Module):
-    def __init__(self, env, config):
+    def __init__(self, env, config, writer):
         super(Policy, self).__init__()
+        self.env = env
         self.state_space = env.observation_space.shape[0]
         self.action_space = env.action_space.shape[0]
         self.action_space_high = torch.from_numpy(env.action_space.high)
         self.action_space_low = torch.from_numpy(env.action_space.low)
 
-        self.l1 = nn.Linear(self.state_space, 10)
-        self.l2 = nn.Linear(10, self.action_space)
+        self.l1 = nn.Linear(self.state_space, 24)
+        self.l2 = nn.Linear(24, self.action_space)
 
         self.gamma = config.gamma
         self.sigma = config.sigma
+        self.eps = 1.0
 
         self.optimizer = optim.Adam(self.parameters(), lr=config.policy_lr)
 
@@ -32,6 +35,8 @@ class Policy(nn.Module):
         self.reward_history = []
         self.loss_history = []
 
+        self.writer = writer
+
     '''
         Estimate the mean of a Gaussian (continuous) stochastic policy.
     '''
@@ -39,43 +44,24 @@ class Policy(nn.Module):
         out = self.l1(state)
         out = F.relu(out)
         out = self.l2(out)
-        # out = self.action_space_low + (self.action_space_high - self.action_space_low) * F.sigmoid(out)
+        # out = self.action_space_low.float() + (self.action_space_high.float() - self.action_space_low.float()) * F.sigmoid(out)
         return out
 
     def get_action(self, state):
         state = torch.from_numpy(state).type(torch.FloatTensor)
         action_mean = self.forward(Variable(state))
         m = torch.distributions.normal.Normal(action_mean, self.sigma)
-        # print(action_mean)
         sample = m.sample().numpy()
+        print("Action mean: {}".format(action_mean))
         return np.clip(sample, self.action_space_low.numpy(), self.action_space_high.numpy())
-
-    # def apply_gradient(self, states, critic, ep):
-    #     self.optimizer.zero_grad()
-    #     n_states = len(states)
-    #     for param in self.parameters():
-    #         param_grad = np.zeros(param.shape)
-    #         for state in states:
-    #             prob = lambda a : 1./(2*np.pi*self.sigma**2)**(self.action_space/2.) * torch.exp(-torch.norm((torch.from_numpy(a).float() - self.forward(torch.from_numpy(state).float())))**2 / (2*self.sigma**2))
-    #             f = lambda a : (torch.autograd.grad(prob(a), param)[0] * critic(torch.from_numpy(state).float(), torch.from_numpy(a).float())).detach().numpy()
-    #             param_grad += 1./n_states * integration.compute_integral(f, self.action_space_low, self.action_space_high, param.shape, 0.1)
-    #         param.grad = torch.from_numpy(-param_grad).float()
-    #         print(param.grad)
-    #     self.optimizer.step()
-    #     return
 
     def apply_gradient2(self, state, qcritic, vcritic, step):
         self.optimizer.zero_grad()
         for param in self.parameters():
             param_grad = np.zeros(param.shape)
             prob = lambda a : 1./(2*np.pi*self.sigma**2)**(self.action_space/2.) * torch.exp(-torch.norm((torch.from_numpy(a).float() - self.forward(torch.from_numpy(state).float())))**2 / (2*self.sigma**2))
-            # f = lambda a : (prob(a) * torch.autograd.grad(torch.log(prob(a) + .0001), param)[0] * (qcritic(torch.from_numpy(state).float(), torch.from_numpy(a).float()) - vcritic(torch.from_numpy(state).float()))).detach().numpy()
-            # f = lambda a : (torch.autograd.grad(prob(a), param)[0] * (qcritic(torch.from_numpy(state).float(), torch.from_numpy(a).float()) - vcritic(torch.from_numpy(state).float()))).detach().numpy()
-            # param_grad += (self.gamma**step) * integration.compute_integral(f, self.action_space_low, self.action_space_high, param.shape, 0.1)
-            # print(type((self.gamma**step) * integration.compute_integral_asr(f, self.action_space_low.numpy(), self.action_space_high.numpy(), 0.1)))
             param_grad += (self.gamma**step) * integration.compute_integral_asr(f, self.action_space_low.numpy(), self.action_space_high.numpy(), 0.1)
             param.grad = torch.from_numpy(-param_grad).float()
-            # print(param.grad)
         self.optimizer.step()
         return
 
@@ -84,12 +70,62 @@ class Policy(nn.Module):
         for param in self.parameters():
             param_grad = np.zeros(param.shape)
             prob = lambda a : 1./(2*np.pi*self.sigma**2)**(self.action_space/2.) * torch.exp(-torch.norm((torch.from_numpy(a).float() - self.forward(torch.from_numpy(state).float())))**2 / (2*self.sigma**2))
-            # f = lambda a : (prob(a) * torch.autograd.grad(torch.log(prob(a) + .0001), param)[0] * (qcritic(torch.from_numpy(state).float(), torch.from_numpy(a).float()) - vcritic(torch.from_numpy(state).float()))).detach().numpy()
-            # f = lambda a : (torch.autograd.grad(prob(a), param)[0] * (qcritic(torch.from_numpy(state).float(), torch.from_numpy(a).float()) - vcritic(torch.from_numpy(state).float()))).detach().numpy()
-            # param_grad += (self.gamma**step) * integration.compute_integral(f, self.action_space_low, self.action_space_high, param.shape, 0.1)
-            # print(type((self.gamma**step) * integration.compute_integral_asr(f, self.action_space_low.numpy(), self.action_space_high.numpy(), 0.1)))
             param_grad = (self.gamma ** step) * (prob(action) * torch.autograd.grad(torch.log(prob(action) + .0001), param)[0] * (qcritic(torch.from_numpy(state).float(), torch.from_numpy(action).float()) - vcritic(torch.from_numpy(state).float())))
             param.grad = -param_grad
+            # print(param.grad)
+        self.optimizer.step()
+        return
+
+    '''
+    Without V critic
+    '''
+    def apply_gradient4(self, states, actions, rewards, qcritic, vcritic, ep):
+        self.eps *= 0.95
+        self.optimizer.zero_grad()
+
+        n_states = len(states)
+
+        rewards = np.array(rewards)
+        g = self.gamma ** np.arange(n_states) * rewards
+        g = np.cumsum(g[::-1])[::-1]
+
+        for param in self.parameters():
+            param.grad = torch.zeros(param.shape)
+
+        for i in range(n_states):
+            state = states[i]
+            action = actions[i]
+            for param in self.parameters():
+                prob = lambda a : 1./(2*np.pi*self.sigma**2)**(self.action_space/2.) * torch.exp(-torch.norm((torch.from_numpy(a).float() - self.forward(torch.from_numpy(state).float())))**2 / (2*self.sigma**2))
+                grad = - 1./(self.sigma**2) * torch.autograd.grad(self.forward(torch.from_numpy(state).float()), param)[0] * (torch.from_numpy(action).float() - self.forward(torch.from_numpy(state).float()))
+                param.grad -= grad * g[i]
+        for name, param in self.named_parameters():
+            self.writer.add_scalar("gradient_norm_{}".format(name), torch.norm(param.grad), ep)
+        self.optimizer.step()
+        return
+
+    '''
+    Without V critic
+    '''
+    def apply_gradient5(self, states, actions, rewards, qcritic, vcritic):
+        self.optimizer.zero_grad()
+
+        n_states = len(states)
+
+        rewards = np.array(rewards)
+        g = self.gamma ** np.arange(n_states) * rewards
+        g = np.cumsum(g[::-1])[::-1]
+
+        for param in self.parameters():
+            param.grad = torch.zeros(param.shape)
+
+        for i in range(n_states):
+            state = states[i]
+            action = actions[i]
+            for param in self.parameters():
+                prob = lambda a : 1./(2*np.pi*self.sigma**2)**(self.action_space/2.) * torch.exp(-torch.norm((torch.from_numpy(a).float() - self.forward(torch.from_numpy(state).float())))**2 / (2*self.sigma**2))
+                grad = - 1./(self.sigma**2) * torch.autograd.grad(self.forward(torch.from_numpy(state).float()), param)[0] * (torch.from_numpy(action).float() - self.forward(torch.from_numpy(state).float()))
+                param.grad += grad * g[i]
             # print(param.grad)
         self.optimizer.step()
         return

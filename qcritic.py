@@ -17,9 +17,10 @@ class QCritic(nn.Module):
         self.action_space_low = env.action_space.low
 
         # Input is a concatenation of state and action.
-        self.l1 = nn.Linear(self.state_space + self.action_space, 10)
+        self.l1 = nn.Linear(self.state_space + self.action_space, 24)
         # Output a single Q value for that state and action.
-        self.l2 = nn.Linear(10, 1)
+        self.l2 = nn.Linear(24, 48)
+        self.l3 = nn.Linear(48, 1)
 
         self.gamma = config.gamma
 
@@ -30,6 +31,8 @@ class QCritic(nn.Module):
         out = self.l1(concat)
         out = F.relu(out)
         out = self.l2(out)
+        out = F.relu(out)
+        out = self.l3(out)
         return out
 
     def apply_gradient(self, s1, a1, r, s2, a2):
