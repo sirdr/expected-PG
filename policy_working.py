@@ -29,12 +29,6 @@ class Policy(nn.Module):
 
         self.optimizer = optim.Adam(self.parameters(), lr=config.policy_lr)
 
-        # Episode policy and reward history
-        self.reward_episode = []
-        # Overall reward and loss history
-        self.reward_history = []
-        self.loss_history = []
-
         self.writer = writer
 
     '''
@@ -65,6 +59,7 @@ class Policy(nn.Module):
         advantages = np.concatenate(advantages)
         if normalize:
             advantages = (advantages - np.mean(advantages)) / np.std(advantages)
+        print(advantages)
         return advantages
 
     '''
@@ -73,39 +68,22 @@ class Policy(nn.Module):
     def apply_gradient_batch(self, states, actions, rewards, qcritic, vcritic, batch):
 
         self.optimizer.zero_grad()
-        grads = {}
-        for name, param in self.named_parameters():
-            grads[name] = torch.zeros_like(param)
 
         n_episodes = len(states)
-        states = [state for episode in states for state in episode[:-1]]
-        actions = [action for episode in actions for action in episode]
-        n_actions = len(actions)
-        advantages = self.compute_advantages(rewards, normalize=True)
+        states = torch.tensor(np.array([state for episode in states for state in episode[:-1]])).float()
+        actions = torch.tensor(np.array([action for episode in actions for action in episode])).float()
+        advantages = torch.tensor(self.compute_advantages(rewards, normalize=True)).float()
 
-        print(f"Actions in batch: {n_actions}")
+        std = torch.exp(self.log_std)
+        log_probs = torch.distributions.normal.Normal(self.forward(states), std).log_prob(actions).flatten()
 
-        for i in range(n_actions):
-
-            state = states[i]
-            action = actions[i]
-            advantage = advantages[i]
-
-            # std = torch.exp(self.log_std)
-            # dist = torch.distributions.normal.Normal(self.forward(torch.from_numpy(state).float()), std)
-            # (-dist.log_prob(torch.from_numpy(action).float()) * advantages[i]).backward()
-
-            # print(list(self.parameters())[0].grad)
-
-            for name, param in self.named_parameters():
-                std = torch.exp(self.log_std)
-                dist = torch.distributions.normal.Normal(self.forward(torch.from_numpy(state).float()), std)
-                grads[name] -= grad(dist.log_prob(torch.from_numpy(action).float()), param)[0] * advantage
+        loss = - torch.dot(log_probs, advantages)
+        loss.backward()
 
         for name, param in self.named_parameters():
-            param.grad = grads[name]
-            self.writer.add_scalar(f"grad_norm_{name}", torch.norm(param.grad), batch)
             print(name, param.grad)
+            self.writer.add_scalar(f"grad_norm_{name}", torch.norm(param.grad), batch)
 
         self.optimizer.step()
+
         return

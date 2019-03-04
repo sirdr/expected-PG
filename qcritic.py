@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -27,7 +28,7 @@ class QCritic(nn.Module):
         self.optimizer = optim.Adam(self.parameters(), lr=config.critic_lr)
 
     def forward(self, state, action):
-        concat = torch.cat((state, action), 0)
+        concat = torch.cat((state, action), -1)
         out = self.l1(concat)
         out = F.relu(out)
         out = self.l2(out)
@@ -38,8 +39,31 @@ class QCritic(nn.Module):
     def apply_gradient(self, s1, a1, r, s2, a2):
         self.optimizer.zero_grad()
         current_Q = self.forward(torch.from_numpy(s1).float(), torch.from_numpy(a1).float())
-        # delta = r + self.gamma * self.forward(torch.from_numpy(s2).float(), torch.from_numpy(a2).float()) - current_Q
+        print(f"Current Q: {current_Q} - Target: {r + self.gamma * self.forward(torch.from_numpy(s2).float(), torch.from_numpy(a2).float())}")
         loss = nn.MSELoss()(current_Q, r + self.gamma * self.forward(torch.from_numpy(s2).float(), torch.from_numpy(a2).float()))
+        loss.backward()
+        self.optimizer.step()
+        return
+
+    def compute_returns(self, rewards_by_path):
+        returns = []
+        for reward_path in rewards_by_path:
+            g = np.array(reward_path)
+            n_transitions = len(g)
+            g = (self.gamma ** np.arange(n_transitions)) * g
+            g = np.cumsum(g[::-1])[::-1] / (self.gamma ** np.arange(n_transitions))
+            returns.append(g)
+        returns = np.concatenate(returns)
+        return returns
+
+    def apply_gradient_batch(self, states, actions, rewards):
+        self.optimizer.zero_grad()
+        returns = self.compute_returns(rewards)
+        states = np.vstack([state for episode in states for state in episode[:-1]])
+        actions = np.vstack([action for episode in actions for action in episode])
+        print(states.shape, actions.shape)
+        current_Q = self.forward(torch.from_numpy(states).float(), torch.from_numpy(actions).float())
+        loss = nn.MSELoss()(current_Q, torch.from_numpy(returns).float())
         loss.backward()
         self.optimizer.step()
         return

@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -35,6 +36,27 @@ class VCritic(nn.Module):
         self.optimizer.zero_grad()
         current_V = self.forward(torch.from_numpy(s1).float())
         loss = nn.MSELoss()(current_V, r + self.gamma * self.forward(torch.from_numpy(s2).float()))
+        loss.backward()
+        self.optimizer.step()
+        return
+
+    def compute_returns(self, rewards_by_path):
+        returns = []
+        for reward_path in rewards_by_path:
+            g = np.array(reward_path)
+            n_transitions = len(g)
+            g = (self.gamma ** np.arange(n_transitions)) * g
+            g = np.cumsum(g[::-1])[::-1] / (self.gamma ** np.arange(n_transitions))
+            returns.append(g)
+        returns = np.concatenate(returns)
+        return returns
+
+    def apply_gradient_batch(self, states, rewards):
+        self.optimizer.zero_grad()
+        returns = self.compute_returns(rewards)
+        states = np.vstack([state for episode in states for state in episode[:-1]])
+        current_V = self.forward(torch.from_numpy(states).float())
+        loss = nn.MSELoss()(current_V, torch.from_numpy(returns).float())
         loss.backward()
         self.optimizer.step()
         return
