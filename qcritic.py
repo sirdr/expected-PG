@@ -39,7 +39,7 @@ class QCritic(nn.Module):
     def apply_gradient(self, s1, a1, r, s2, a2):
         self.optimizer.zero_grad()
         current_Q = self.forward(torch.from_numpy(s1).float(), torch.from_numpy(a1).float())
-        print(f"Current Q: {current_Q} - Target: {r + self.gamma * self.forward(torch.from_numpy(s2).float(), torch.from_numpy(a2).float())}")
+        # print(f"Current Q: {current_Q} - Target: {r + self.gamma * self.forward(torch.from_numpy(s2).float(), torch.from_numpy(a2).float())}")
         loss = nn.MSELoss()(current_Q, r + self.gamma * self.forward(torch.from_numpy(s2).float(), torch.from_numpy(a2).float()))
         loss.backward()
         self.optimizer.step()
@@ -61,7 +61,6 @@ class QCritic(nn.Module):
         returns = self.compute_returns(rewards)
         states = np.vstack([state for episode in states for state in episode[:-1]])
         actions = np.vstack([action for episode in actions for action in episode])
-        print(states.shape, actions.shape)
         current_Q = self.forward(torch.from_numpy(states).float(), torch.from_numpy(actions).float())
         loss = nn.MSELoss()(current_Q, torch.from_numpy(returns).float())
         loss.backward()

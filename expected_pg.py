@@ -1,3 +1,0 @@
-'''
-    Actual policy gradient computation.
-'''

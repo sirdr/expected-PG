@@ -5,15 +5,14 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torch.autograd import Variable, grad
 import pdb
-import integration
 import random
 
 '''
     Policy is trained using any policy gradient method.
 '''
-class Policy(nn.Module):
+class PolicyReinforce(nn.Module):
     def __init__(self, env, config, writer):
-        super(Policy, self).__init__()
+        super(PolicyReinforce, self).__init__()
         self.env = env
         self.state_space = env.observation_space.shape[0]
         self.action_space = env.action_space.shape[0]
@@ -25,9 +24,14 @@ class Policy(nn.Module):
         self.log_std = torch.nn.Parameter(torch.tensor([np.log(0.1)], dtype=torch.float32), requires_grad=True)
 
         self.gamma = config.gamma
-        self.sigma = config.sigma
 
         self.optimizer = optim.Adam(self.parameters(), lr=config.policy_lr)
+
+        # Episode policy and reward history
+        self.reward_episode = []
+        # Overall reward and loss history
+        self.reward_history = []
+        self.loss_history = []
 
         self.writer = writer
 
@@ -48,42 +52,57 @@ class Policy(nn.Module):
         sample = dist.sample().numpy()
         return np.clip(sample, self.action_space_low.numpy(), self.action_space_high.numpy())
 
-    def compute_advantages(self, rewards_by_path, normalize=True):
+    def compute_advantages(self, states, rewards_by_path, vcritic=None, normalize=True):
         advantages = []
-        for reward_path in rewards_by_path:
-            g = np.array(reward_path)
+        for i in range(len(rewards_by_path)):
+            g = np.array(rewards_by_path[i])
             n_transitions = len(g)
             g = (self.gamma ** np.arange(n_transitions)) * g
             g = np.cumsum(g[::-1])[::-1] / (self.gamma ** np.arange(n_transitions))
             advantages.append(g)
         advantages = np.concatenate(advantages)
+        if vcritic != None:
+            v_values = vcritic(torch.from_numpy(np.vstack(states)).float()).detach().numpy().flatten()
+            advantages -= v_values
         if normalize:
             advantages = (advantages - np.mean(advantages)) / np.std(advantages)
-        print(advantages)
         return advantages
 
     '''
     Batch version - no critic, only sampling.
     '''
-    def apply_gradient_batch(self, states, actions, rewards, qcritic, vcritic, batch):
+    def apply_gradient_batch(self, states, actions, rewards, batch, vcritic=None):
 
         self.optimizer.zero_grad()
+        grads = {}
+        for name, param in self.named_parameters():
+            grads[name] = torch.zeros_like(param)
 
         n_episodes = len(states)
-        states = torch.tensor(np.array([state for episode in states for state in episode[:-1]])).float()
-        actions = torch.tensor(np.array([action for episode in actions for action in episode])).float()
-        advantages = torch.tensor(self.compute_advantages(rewards, normalize=True)).float()
 
-        std = torch.exp(self.log_std)
-        log_probs = torch.distributions.normal.Normal(self.forward(states), std).log_prob(actions).flatten()
+        states = [state for episode in states for state in episode[:-1]]
+        actions = [action for episode in actions for action in episode]
+        advantages = self.compute_advantages(states, rewards, vcritic=vcritic, normalize=True)
+        n_actions = len(actions)
 
-        loss = - torch.dot(log_probs, advantages)
-        loss.backward()
+        print(f"Actions in batch: {n_actions}")
+
+        for i in range(n_actions):
+
+            state = states[i]
+            action = actions[i]
+            advantage = advantages[i]
+
+            for name, param in self.named_parameters():
+                std = torch.exp(self.log_std)
+                dist = torch.distributions.normal.Normal(self.forward(torch.from_numpy(state).float()), std)
+                grads[name] -= grad(dist.log_prob(torch.from_numpy(action).float()), param)[0] * advantage
 
         for name, param in self.named_parameters():
-            print(name, param.grad)
+            param.grad = grads[name]
             self.writer.add_scalar(f"grad_norm_{name}", torch.norm(param.grad), batch)
+            print(name, param.grad)
 
+        torch.nn.utils.clip_grad_norm(self.parameters(), 1.) #Clip gradients for model stability.
         self.optimizer.step()
-
         return
