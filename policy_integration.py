@@ -69,9 +69,7 @@ class PolicyIntegration(nn.Module):
             advantages = (advantages - np.mean(advantages)) / np.std(advantages)
         return advantages
 
-    '''
-    Batch version - no critic, only sampling.
-    '''
+
     def apply_gradient_batch(self, states, actions, rewards, batch, qcritic, vcritic=None):
 
         self.optimizer.zero_grad()
@@ -88,14 +86,17 @@ class PolicyIntegration(nn.Module):
         print(f"Actions in batch: {n_actions}")
 
         for i in range(n_actions):
+
             print(i)
 
             state = states[i]
             action = actions[i]
+            action_means = self.forward(torch.from_numpy(state).float())
 
             for name, param in self.named_parameters():
                 dist = torch.distributions.normal.Normal(self.forward(torch.from_numpy(state).float()), self.std)
-                fun = lambda a : (qcritic(torch.from_numpy(state).float(), torch.from_numpy(a).float())).detach().numpy()
+                fun = lambda a : (grad(dist.log_prob(torch.from_numpy(a).float()), param, retain_graph=True)[0] * qcritic(torch.from_numpy(state).float(), torch.from_numpy(a).float())).detach().numpy()
+                # fun = lambda a : (grad(1./np.sqrt(2*np.pi*self.std**(self.action_space)) * torch.exp(-(torch.from_numpy(a).float() - action_means)**2/(2*self.std**(2*self.action_space))), param, retain_graph=True)[0] * qcritic(torch.from_numpy(state).float(), torch.from_numpy(a).float())).detach().numpy()
                 estimate = integration.compute_integral_asr(fun, self.action_space_low.numpy(), self.action_space_high.numpy(), 0.1)
                 grads[name] -= torch.from_numpy(estimate).float()
 
@@ -104,6 +105,6 @@ class PolicyIntegration(nn.Module):
             self.writer.add_scalar(f"grad_norm_{name}", torch.norm(param.grad), batch)
             print(name, param.grad)
 
-        torch.nn.utils.clip_grad_norm(self.parameters(), 1.) #Clip gradients for model stability.
+        torch.nn.utils.clip_grad_norm(self.parameters(), 1.) # Clip gradients for model stability.
         self.optimizer.step()
         return

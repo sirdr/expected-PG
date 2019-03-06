@@ -3,4 +3,4 @@ class Config:
     eps = 0.1
     critic_lr = 1e-2
     policy_lr = 1e-3
-    batch_size = 100
+    batch_size = 1000

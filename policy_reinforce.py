@@ -68,9 +68,6 @@ class PolicyReinforce(nn.Module):
             advantages = (advantages - np.mean(advantages)) / np.std(advantages)
         return advantages
 
-    '''
-    Batch version - no critic, only sampling.
-    '''
     def apply_gradient_batch(self, states, actions, rewards, batch, vcritic=None):
 
         self.optimizer.zero_grad()
