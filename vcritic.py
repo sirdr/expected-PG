@@ -25,6 +25,7 @@ class VCritic(nn.Module):
         self.gamma = config.gamma
 
         self.optimizer = optim.Adam(self.parameters(), lr=config.critic_lr)
+        # self.optimizer = optim.SGD(self.parameters(), lr=config.critic_lr)
 
     def forward(self, state):
         out = self.l1(state)

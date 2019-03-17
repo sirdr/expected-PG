@@ -23,12 +23,17 @@ class PolicyBackward(nn.Module):
 
         self.l1 = nn.Linear(self.state_space, 16)
         self.l2 = nn.Linear(16, self.action_space)
-        self.log_std = torch.nn.Parameter(torch.tensor([np.log(0.1)], dtype=torch.float32), requires_grad=True)
+
+        if config.learn_std:
+            self.log_std = torch.nn.Parameter(torch.tensor([np.log(0.2)], dtype=torch.float32), requires_grad=True)
+        else:
+            self.log_std = torch.tensor([np.log(0.2)], dtype=torch.float32)
 
         self.gamma = config.gamma
 
+        self.normalize_advantages = config.normalize_advantages
         self.optimizer = optim.Adam(self.parameters(), lr=config.policy_lr)
-
+        # self.optimizer = optim.SGD(self.parameters(), lr=config.policy_lr)
         self.writer = writer
 
     '''
@@ -61,26 +66,30 @@ class PolicyBackward(nn.Module):
             v_values = vcritic(torch.from_numpy(np.vstack(states)).float()).detach().numpy().flatten()
             advantages -= v_values
         if normalize:
-            advantages = (advantages - np.mean(advantages)) / np.std(advantages)
+            advantages = (advantages - np.mean(advantages)) / (.1 + np.std(advantages))
         return advantages
 
-    def apply_gradient_batch(self, states, actions, rewards, batch, vcritic=None):
+    def apply_gradient_batch(self, states, actions, rewards, batch, vcritic):
 
         self.optimizer.zero_grad()
 
         n_episodes = len(states)
+        n_states = sum([len(s) for s in states])
         states = torch.tensor(np.array([state for episode in states for state in episode[:-1]])).float()
         actions = torch.tensor(np.array([action for episode in actions for action in episode])).float()
-        advantages = torch.tensor(self.compute_advantages(states, rewards, vcritic=vcritic, normalize=True)).float()
+        advantages = torch.tensor(self.compute_advantages(states, rewards, vcritic=vcritic, normalize=self.normalize_advantages)).float()
+
+        self.writer.add_scalar(f"average_advantage", torch.mean(advantages), batch)
+        self.writer.add_scalar(f"std_advantage", torch.std(advantages), batch)
 
         std = torch.exp(self.log_std)
         log_probs = torch.distributions.normal.Normal(self.forward(states), std).log_prob(actions).flatten()
 
-        loss = - torch.dot(log_probs, advantages)
+        loss = - torch.dot(log_probs, advantages) / n_states
         loss.backward()
 
         for name, param in self.named_parameters():
-            print(name, param.grad)
+            # print(name, param.grad)
             self.writer.add_scalar(f"grad_norm_{name}", torch.norm(param.grad), batch)
 
         # torch.nn.utils.clip_grad_norm(self.parameters(), 1.) #Clip gradients for model stability.
