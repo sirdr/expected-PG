@@ -28,7 +28,7 @@ policy.train()
 vcritic.train()
 qcritic.train()
 
-for batch in range(10000):
+for batch in range(3500):
 
     states = []
     actions = []

@@ -22,8 +22,11 @@ class PolicyIntegration(nn.Module):
 
         self.l1 = nn.Linear(self.state_space, 16)
         self.l2 = nn.Linear(16, self.action_space)
-        # self.log_std = torch.nn.Parameter(torch.tensor([np.log(0.1)], dtype=torch.float32), requires_grad=True)
-        self.std = 0.1
+
+        if config.learn_std:
+            self.log_std = torch.nn.Parameter(torch.tensor([np.log(0.2)], dtype=torch.float32), requires_grad=True)
+        else:
+            self.log_std = torch.tensor([np.log(0.2)], dtype=torch.float32)
 
         self.gamma = config.gamma
 
@@ -49,7 +52,7 @@ class PolicyIntegration(nn.Module):
     def get_action(self, state):
         state = torch.from_numpy(state).type(torch.FloatTensor)
         action_mean = self.forward(state)
-        dist = torch.distributions.normal.Normal(action_mean, self.std)
+        dist = torch.distributions.normal.Normal(action_mean, torch.exp(self.log_std))
         sample = dist.sample().numpy()
         return np.clip(sample, self.action_space_low.numpy(), self.action_space_high.numpy())
 
@@ -69,7 +72,6 @@ class PolicyIntegration(nn.Module):
             advantages = (advantages - np.mean(advantages)) / np.std(advantages)
         return advantages
 
-
     def apply_gradient_batch(self, states, actions, rewards, batch, qcritic, vcritic=None):
 
         self.optimizer.zero_grad()
@@ -83,21 +85,19 @@ class PolicyIntegration(nn.Module):
         actions = [action for episode in actions for action in episode]
         n_actions = len(actions)
 
-        print(f"Actions in batch: {n_actions}")
+        std = torch.exp(self.log_std)
 
         for i in range(n_actions):
-
-            print(i)
 
             state = states[i]
             action = actions[i]
             action_means = self.forward(torch.from_numpy(state).float())
 
             for name, param in self.named_parameters():
-                dist = torch.distributions.normal.Normal(self.forward(torch.from_numpy(state).float()), self.std)
-                fun = lambda a : (grad(dist.log_prob(torch.from_numpy(a).float()), param, retain_graph=True)[0] * qcritic(torch.from_numpy(state).float(), torch.from_numpy(a).float())).detach().numpy()
-                # fun = lambda a : (grad(1./np.sqrt(2*np.pi*self.std**(self.action_space)) * torch.exp(-(torch.from_numpy(a).float() - action_means)**2/(2*self.std**(2*self.action_space))), param, retain_graph=True)[0] * qcritic(torch.from_numpy(state).float(), torch.from_numpy(a).float())).detach().numpy()
-                estimate = integration.compute_integral_asr(fun, self.action_space_low.numpy(), self.action_space_high.numpy(), 0.1)
+                tensor_state = torch.from_numpy(state).float()
+                dist = torch.distributions.normal.Normal(self.forward(tensor_state), std)
+                fun = lambda a : (grad(torch.exp(dist.log_prob(torch.from_numpy(a).float())), param, retain_graph=True)[0] * (qcritic(tensor_state, torch.from_numpy(a).float()) - vcritic(tensor_state))).detach().numpy()
+                estimate = integration.compute_integral_asr(fun, self.action_space_low.numpy(), self.action_space_high.numpy(), 0.01)
                 grads[name] -= torch.from_numpy(estimate).float()
 
         for name, param in self.named_parameters():
@@ -105,6 +105,5 @@ class PolicyIntegration(nn.Module):
             self.writer.add_scalar(f"grad_norm_{name}", torch.norm(param.grad), batch)
             print(name, param.grad)
 
-        torch.nn.utils.clip_grad_norm(self.parameters(), 1.) # Clip gradients for model stability.
         self.optimizer.step()
         return
