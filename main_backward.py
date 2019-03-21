@@ -23,7 +23,7 @@ policy = PolicyBackward(env, config, writer)
 
 policy.train()
 
-for batch in range(10000):
+for batch in range(4000):
 
     states = []
     actions = []
