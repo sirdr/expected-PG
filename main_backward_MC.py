@@ -70,12 +70,11 @@ for batch in range(3500):
     policy.apply_gradient_batch(states, actions, rewards, batch, qcritic, vcritic)
 
     policy_std = np.exp(policy.log_std.detach().numpy())
-    print(f"Policy std: {policy_std}")
 
     # Compute evaluation reward (last episode of batch).
     # total_reward = np.sum(rewards[-1])
     total_reward = np.mean([np.sum(ep) for ep in rewards])
-    print(f"Score of last episode in batch: {total_reward}")
+    print("Score of last episode in batch: {0} | episode {1}".format(total_reward, batch))
 
     writer.add_scalar("total_reward", total_reward, batch)
     writer.add_scalar("policy_std", policy_std, batch)

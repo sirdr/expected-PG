@@ -34,11 +34,15 @@ class QCritic(nn.Module):
         out = self.l2(out)
         return out
 
-    def apply_gradient(self, s1, a1, r, s2, a2):
+    def apply_gradient(self, s1, a1, r, s2, a2, target_q=None):
         self.optimizer.zero_grad()
         current_Q = self.forward(torch.from_numpy(s1).float(), torch.from_numpy(a1).float())
         # print(f"Current Q: {current_Q} - Target: {r + self.gamma * self.forward(torch.from_numpy(s2).float(), torch.from_numpy(a2).float())}")
-        loss = nn.MSELoss()(current_Q, r + self.gamma * self.forward(torch.from_numpy(s2).float(), torch.from_numpy(a2).float()))
+        if target_q is None:
+            y = r + self.gamma * self.forward(torch.from_numpy(s2).float(), torch.from_numpy(a2).float())
+        else:
+            y = r + self.gamma * target_q.forward(torch.from_numpy(s2).float(), torch.from_numpy(a2).float()).detach()
+        loss = nn.MSELoss()(current_Q, y)
         loss.backward()
         self.optimizer.step()
         return

@@ -29,6 +29,7 @@ class PolicyIntegration(nn.Module):
             self.log_std = torch.tensor([np.log(0.2)], dtype=torch.float32)
 
         self.gamma = config.gamma
+        self.eps = config.eps
 
         self.optimizer = optim.Adam(self.parameters(), lr=config.policy_lr)
 
@@ -97,7 +98,7 @@ class PolicyIntegration(nn.Module):
                 tensor_state = torch.from_numpy(state).float()
                 dist = torch.distributions.normal.Normal(self.forward(tensor_state), std)
                 fun = lambda a : (grad(torch.exp(dist.log_prob(torch.from_numpy(a).float())), param, retain_graph=True)[0] * (qcritic(tensor_state, torch.from_numpy(a).float()) - vcritic(tensor_state))).detach().numpy()
-                estimate = integration.compute_integral_asr(fun, self.action_space_low.numpy(), self.action_space_high.numpy(), 0.01)
+                estimate = integration.compute_integral_asr(fun, self.action_space_low.numpy(), self.action_space_high.numpy(), self.eps)
                 grads[name] -= torch.from_numpy(estimate).float()
 
         for name, param in self.named_parameters():
