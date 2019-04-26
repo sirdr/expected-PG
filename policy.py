@@ -218,7 +218,9 @@ class PolicyIntegrationTrapezoidal(Policy):
 
         num_states = states.shape[0]
         actions = np.linspace(self.action_space_low,self.action_space_high, num=self.num_actions)
+        actions = np.squeeze(actions)
         print(actions.shape)
+
         weights = (actions[1:]-actions[:-1])
         states = np.reshape(np.tile(states, len(actions)), (len(actions)*num_states, -1))
 
