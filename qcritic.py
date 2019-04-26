@@ -9,7 +9,7 @@ from torch.autograd import backward, Variable
 Q-Critic is trained by SARSA (learning current policy's state-action values).
 '''
 class QCritic(nn.Module):
-    def __init__(self, env, config):
+    def __init__(self, env, config, use_gpu=False):
         super(QCritic, self).__init__()
         self.state_space = env.observation_space.shape[0]
         self.action_space = env.action_space.shape[0]
@@ -21,6 +21,10 @@ class QCritic(nn.Module):
         self.l1 = nn.Linear(self.state_space + self.action_space, 48)
         # Output a single Q value for that state and action.
         self.l2 = nn.Linear(48, 1)
+
+        if use_gpu:
+            self.l1 = self.l1.cuda()
+            self.l2 = self.l2.cuda()
 
         self.gamma = config.gamma
 

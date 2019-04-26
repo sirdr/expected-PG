@@ -31,20 +31,12 @@ def run(env, config,
     vcritic = VCritic(env, config)
     policy = get_policy(policy_type, env, config, writer)
 
-    if use_gpu:
-        vcritic = vcritic.cuda()
-        policy = policy.cuda()
-
     if policy_type == 'integrate' or policy_type == 'mc':
         use_qcritic = True
         qcritic = QCritic(env, config)
-        if use_gpu:
-            qcritic = qcritic.cuda()
         qcritic.train()
         if use_target:
             target_qcritic = QCritic(env, config)
-            if use_gpu:
-                target_qcritic = target_qcritic.cuda()
             target_qcritic.load_state_dict(qcritic.state_dict())
             target_qcritic.eval()
     else:
