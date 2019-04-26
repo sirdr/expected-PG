@@ -54,8 +54,8 @@ def save_checkpoint(policy, seed, env, config, use_qcritic, use_target, vcritic=
                 'use_target': use_target
                 }
     if vcritic is not None:
-        save_dict['vcritic_state_dict'] = critic.state_dict()
-        save_dict['vcritic_optimizer_state_dict'] = critic.optimizer.state_dict()
+        save_dict['vcritic_state_dict'] = vcritic.state_dict()
+        save_dict['vcritic_optimizer_state_dict'] = vcritic.optimizer.state_dict()
     if critic is not None:
         save_dict['critic_state_dict'] = critic.state_dict()
         save_dict['critic_optimizer_state_dict'] = critic.optimizer.state_dict()
