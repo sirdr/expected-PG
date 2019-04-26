@@ -189,6 +189,7 @@ class PolicyIntegrationTrapezoidal(Policy):
 
         # TODO: Might not work in higher dimensions (>1)! Check linspace.
         actions = np.linspace(self.action_space_low, self.action_space_high, num=self.num_actions)
+        actions = np.squeeze(actions)
         weights = (actions[1:]-actions[:-1])
         states = torch.tensor(np.reshape(np.tile(states, len(actions)), (len(actions) * num_states, -1))).float()
 
