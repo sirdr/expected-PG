@@ -214,12 +214,10 @@ class PolicyIntegrationTrapezoidal(Policy):
         n_states = sum([len(s) for s in states])
 
         states =np.array([state for episode in states for state in episode[:-1]])  
-        print(states.shape)
 
         num_states = states.shape[0]
         actions = np.linspace(self.action_space_low,self.action_space_high, num=self.num_actions)
         actions = np.squeeze(actions)
-        print(actions.shape)
 
         weights = (actions[1:]-actions[:-1])
         states = np.reshape(np.tile(states, len(actions)), (len(actions)*num_states, -1))
@@ -234,9 +232,6 @@ class PolicyIntegrationTrapezoidal(Policy):
         weights = torch.tensor(weights).float()
 
         action_means = self.forward(states)
-
-        print(states.shape)
-        print(actions.shape)
 
         advantages = qcritic(states, actions).flatten().detach() - vcritic(states).flatten().detach()
         self.writer.add_scalar(f"average_advantage", torch.mean(advantages), batch)
