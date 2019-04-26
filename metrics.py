@@ -10,5 +10,5 @@ class MetricsWriter:
         self.file_writer.write("episode,timestamp,metric_name,value\n")
 
     def write_metric(self, episode, metric_name, value):
-        timestamp = int(time.time())
+        timestamp = time.time()
         self.file_writer.write("{},{},{},{}\n".format(episode, timestamp, metric_name, value))
