@@ -138,7 +138,12 @@ if __name__ == '__main__':
     # TODO: Write metrics to file
 
     ## TODO: figure out how to run using GPU
-    ## TODO: add other envs
+    ## TODO: add other envs / make sure that trapezoidal works on higher dimensions
+
+    ## TODO: add the done 
+    ## TODO: figure out the detach issue / target Q
+    ## TODO: investigate unlearning
+
 
 
 
