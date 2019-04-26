@@ -191,10 +191,22 @@ class PolicyIntegrationTrapezoidal(Policy):
         actions = np.linspace(self.action_space_low, self.action_space_high, num=self.num_actions)
         actions = np.squeeze(actions)
         weights = (actions[1:]-actions[:-1])
-        states = torch.tensor(np.reshape(np.tile(states, len(actions)), (len(actions) * num_states, -1))).float()
 
-        actions = torch.tensor(actions).float().repeat(num_states, 1)
-        weights = torch.tensor(weights).float().repeat(num_states, 1)
+        states = np.reshape(np.tile(states, len(actions)), (len(actions)*num_states, -1))
+
+        actions = np.tile(actions, (num_states))
+        weights = np.tile(weights, (num_states))
+        actions = actions[:, None]
+        weights = weights[:, None]
+
+        states = torch.tensor(states).float()
+        actions = torch.tensor(actions).float()
+        weights = torch.tensor(weights).float()
+
+        # states = torch.tensor(np.reshape(np.tile(states, len(actions)), (len(actions) * num_states, -1))).float()
+
+        # actions = torch.tensor(actions).float().repeat(num_states, 1)
+        # weights = torch.tensor(weights).float().repeat(num_states, 1)
 
         action_means = self.forward(states)
 

@@ -28,10 +28,10 @@ class VCritic(nn.Module):
         out = self.l2(out)
         return out
 
-    def apply_gradient(self, s1, a1, r, s2):
+    def apply_gradient(self, s1, a1, r, s2, done):
         self.optimizer.zero_grad()
         current_V = self.forward(torch.from_numpy(s1).float())
-        next_V = r + self.gamma * self.forward(torch.from_numpy(s2).float())
+        next_V = r + (1 - int(done)) * self.gamma * self.forward(torch.from_numpy(s2).float())
         loss = nn.MSELoss()(current_V, next_V)
         loss.backward()
         self.optimizer.step()
