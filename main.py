@@ -18,7 +18,8 @@ from tensorboardX import SummaryWriter
 def run(env, config, 
         policy_type='integrate',
         seed=7, 
-        use_target=False, 
+        use_target=False,
+        use_gpu=False,
         checkpoint_freq=1000,
         num_episodes=4000):
 
@@ -30,12 +31,20 @@ def run(env, config,
     vcritic = VCritic(env, config)
     policy = get_policy(policy_type, env, config, writer)
 
+    if use_gpu:
+        vcritic = vcritic.cuda()
+        policy = policy.cuda()
+
     if policy_type == 'integrate' or policy_type == 'mc':
         use_qcritic = True
         qcritic = QCritic(env, config)
+        if use_gpu:
+            qcritic = qcritic.cuda()
         qcritic.train()
         if use_target:
             target_qcritic = QCritic(env, config)
+            if use_gpu:
+                target_qcritic = target_qcritic.cuda()
             target_qcritic.load_state_dict(qcritic.state_dict())
             target_qcritic.eval()
     else:
@@ -143,7 +152,9 @@ if __name__ == '__main__':
                     choices=['reinforce', 'mc', 'integrate'])
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--use_target', action='store_true')
+    parser.add_argument('--use_gpu', action='store_true')
     #parser.add_argument('--model_path', required=True, type=str)
+
 
     args = parser.parse_args()
 
@@ -157,4 +168,4 @@ if __name__ == '__main__':
 
     config = Config()
 
-    run(env, config, policy_type=args.policy, seed=seed, use_target=args.use_target)
+    run(env, config, policy_type=args.policy, seed=seed, use_target=args.use_target, use_gpu=args.use_gpu)
