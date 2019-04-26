@@ -36,7 +36,7 @@ def get_writer_name(policy_type, config, seed):
     elif policy_type == 'reinforce':
         name = f'reinforce-{config.critic_lr}-{config.policy_lr}-{config.normalize_advantages}-learnStd={config.learn_std}-{seed}-{int(time.time())}'
     elif policy_type == 'integrate':
-        writer = f'integration-{config.critic_lr}-{config.policy_lr}-{config.normalize_advantages}-learnStd={config.learn_std}-{seed}-{int(time.time())}'
+        name = f'integration-{config.critic_lr}-{config.policy_lr}-{config.normalize_advantages}-learnStd={config.learn_std}-{seed}-{int(time.time())}'
     else:
         print("invalid policy type") #should never get here
     return name

@@ -144,7 +144,7 @@ class PolicyIntegration(Policy):
             grads[name] = torch.zeros_like(param)
 
         states = [state for state in ep_states[:-1]]
-        n_actions = len(actions)
+        n_actions = len(ep_actions)
 
         std = torch.exp(self.log_std)
 
@@ -184,28 +184,21 @@ class PolicyIntegrationTrapezoidal(Policy):
 
         self.optimizer.zero_grad()
 
-        n_episodes = len(states)
-        n_states = sum([len(s) for s in states])
-
-        states =np.array([state for episode in states for state in episode[:-1]])
+        states = np.array([state for state in ep_states[:-1]])
         num_states = states.shape[0]
-        # TODO: Might not work in higher dimensions!
-        actions = np.linspace(self.action_space_low,self.action_space_high, num=self.num_actions)
+
+        # TODO: Might not work in higher dimensions (>1)! Check linspace.
+        actions = np.linspace(self.action_space_low, self.action_space_high, num=self.num_actions)
         weights = (actions[1:]-actions[:-1])
-        states = np.reshape(np.tile(states, len(actions)), (len(actions)*num_states, -1))
+        states = torch.tensor(np.reshape(np.tile(states, len(actions)), (len(actions) * num_states, -1))).float()
 
-        actions = np.tile(actions, (num_states))
-        weights = np.tile(weights, (num_states))
-        actions = actions[:, None]
-        weights = weights[:, None]
-
-        states = torch.tensor(states).float() # What's the point of this?
-        actions = torch.tensor(actions).float()
-        weights = torch.tensor(weights).float()
+        actions = torch.tensor(actions).float().repeat(num_states, 1)
+        weights = torch.tensor(weights).float().repeat(num_states, 1)
 
         action_means = self.forward(states)
 
         advantages = qcritic(states, actions).flatten().detach() - vcritic(states).flatten().detach()
+
         self.metrics_writer.write_metric(episode, "average_advantage", torch.mean(advantages))
         self.metrics_writer.write_metric(episode, "std_advantage", torch.std(advantages))
         if(self.normalize_advantages):
@@ -215,13 +208,13 @@ class PolicyIntegrationTrapezoidal(Policy):
         log_probs = torch.distributions.normal.Normal(action_means, std).log_prob(actions).flatten()
         probs = torch.exp(log_probs)
 
-        integrand = probs*advantages
+        integrand = probs * advantages
         integrand_reshaped = torch.reshape(integrand, [-1, self.num_actions])
         integrand_reshaped_avg = (integrand_reshaped[:, :-1] + integrand_reshaped[:, 1:])/2.0
         integrand_avg = torch.reshape(integrand_reshaped_avg, [-1, 1])
         weighted_integrand = weights*integrand_avg
 
-        loss = -torch.sum(weighted_integrand)/num_states
+        loss = -torch.sum(weighted_integrand) / num_states
         loss.backward()
 
         for name, param in self.named_parameters():
