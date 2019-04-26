@@ -137,6 +137,9 @@ if __name__ == '__main__':
     # TODO: Simpsons 2000, 10 iterations (1, 5, 10, 20, 100, 1000)
     # TODO: Write metrics to file
 
+    ## TODO: figure out how to run using GPU
+    ## TODO: add other envs
+
 
 
     parser = argparse.ArgumentParser()
