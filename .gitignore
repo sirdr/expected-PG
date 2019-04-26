@@ -2,3 +2,5 @@ score/
 __pycache__/*
 .DS_Store
 *.tar
+**/runs
+**/score
