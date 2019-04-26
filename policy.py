@@ -230,6 +230,9 @@ class PolicyIntegrationTrapezoidal(Policy):
 
         action_means = self.forward(states)
 
+        print(states.shape)
+        print(actions.shape)
+
         advantages = qcritic(states, actions).flatten().detach() - vcritic(states).flatten().detach()
         self.writer.add_scalar(f"average_advantage", torch.mean(advantages), batch)
         self.writer.add_scalar(f"std_advantage", torch.std(advantages), batch)
