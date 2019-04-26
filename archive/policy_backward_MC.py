@@ -71,8 +71,8 @@ class PolicyBackwardMC(nn.Module):
         actions = torch.max(torch.min(sample, self.action_space_high), self.action_space_low)
 
         advantages = qcritic(states.repeat(self.n_samples_per_state, 1), actions).flatten().detach() - vcritic(states.repeat(self.n_samples_per_state,1)).flatten().detach()
-        self.writer.add_scalar(f"average_advantage", torch.mean(advantages), batch)
-        self.writer.add_scalar(f"std_advantage", torch.std(advantages), batch)
+        self.writer.add_scalar("average_advantage", torch.mean(advantages), batch)
+        self.writer.add_scalar("std_advantage", torch.std(advantages), batch)
         if(self.normalize_advantages):
             advantages = (advantages - torch.mean(advantages)) / (.1 + torch.std(advantages))
 

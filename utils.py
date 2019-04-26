@@ -29,17 +29,17 @@ def get_policy(policy_type, env, config, writer):
         print("invalid policy type") #should never get here
     return policy
 
-def get_writer(policy_type, config, seed):
-    writer = None
+def get_writer_name(policy_type, config, seed):
+    name = ""
     if policy_type == 'mc':
-        writer = SummaryWriter(f'score/mc-{config.critic_lr}-{config.policy_lr}-{config.normalize_advantages}-BS{config.batch_size}-SS{config.n_samples_per_state}-learnStd={config.learn_std}-{seed}-{int(time.time())}')
+        name = f'mc-{config.critic_lr}-{config.policy_lr}-{config.normalize_advantages}-SS{config.n_samples_per_state}-learnStd={config.learn_std}-{seed}-{int(time.time())}'
     elif policy_type == 'reinforce':
-        writer = SummaryWriter(f'score/reinforce-{config.critic_lr}-{config.policy_lr}-{config.normalize_advantages}-BS{config.batch_size}-learnStd={config.learn_std}-{seed}-{int(time.time())}')
+        name = f'reinforce-{config.critic_lr}-{config.policy_lr}-{config.normalize_advantages}-learnStd={config.learn_std}-{seed}-{int(time.time())}'
     elif policy_type == 'integrate':
-        writer = SummaryWriter(f'score/integration-{config.critic_lr}-{config.policy_lr}-{config.normalize_advantages}-BS{config.batch_size}-SS{config.n_samples_per_state}-learnStd={config.learn_std}-{seed}-{int(time.time())}')
+        name = f'integration-{config.critic_lr}-{config.policy_lr}-{config.normalize_advantages}-learnStd={config.learn_std}-{seed}-{int(time.time())}'
     else:
         print("invalid policy type") #should never get here
-    return writer
+    return name
 
 def save_checkpoint(policy, seed, env, config, use_qcritic, use_target, vcritic=None, critic=None, target_critic=None, reward=None, episode=None, timesteps=None, save_path='model.tar', verbose=True):
     if verbose:

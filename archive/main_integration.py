@@ -1,7 +1,7 @@
 import gym
 import numpy as np
 import torch
-from policy_simpsons import PolicyIntegration
+from policy_integration import PolicyIntegration
 from qcritic import QCritic
 from vcritic import VCritic
 from config import Config
