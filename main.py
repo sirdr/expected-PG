@@ -130,12 +130,9 @@ def run(env, config,
 
 if __name__ == '__main__':
 
-    # TODO: add targetQ and soft update
-
     # TODO: 4000 episodes each, 25 iterations
     # TODO: Vary sample size for MC and Fixed Grid (1, 5, 10, 20, 100, 1000)
     # TODO: Simpsons 2000, 10 iterations (1, 5, 10, 20, 100, 1000)
-    # TODO: Write metrics to file
 
     ## TODO: figure out how to run using GPU
     ## TODO: add other envs / make sure that trapezoidal works on higher dimensions
@@ -143,6 +140,10 @@ if __name__ == '__main__':
     ## TODO: add the done 
     ## TODO: figure out the detach issue / target Q
     ## TODO: investigate unlearning
+
+    ## TODO: run integrate to investigate unlearning 
+
+    ## TODO: add gradient comparison script
 
 
 
