@@ -31,19 +31,11 @@ class VCritic(nn.Module):
     def apply_gradient(self, s1, a1, r, s2):
         self.optimizer.zero_grad()
         current_V = self.forward(torch.from_numpy(s1).float())
-        next_V = r + self.gamma * self.forward(torch.from_numpy(s2).float())
-        loss = nn.MSELoss()(current_V, next_V)
+        if s2 is None:
+            next_V = torch.tensor(r).float()
+        else:
+            next_V = r + self.gamma * self.forward(torch.from_numpy(s2).float())
+        loss = nn.MSELoss()(current_V, next_V.detach())
         loss.backward()
         self.optimizer.step()
         return
-
-    def compute_returns(self, rewards_by_path):
-        returns = []
-        for reward_path in rewards_by_path:
-            g = np.array(reward_path)
-            n_transitions = len(g)
-            g = (self.gamma ** np.arange(n_transitions)) * g
-            g = np.cumsum(g[::-1])[::-1] / (self.gamma ** np.arange(n_transitions))
-            returns.append(g)
-        returns = np.concatenate(returns)
-        return returns

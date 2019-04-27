@@ -12,3 +12,4 @@ class MetricsWriter:
     def write_metric(self, episode, metric_name, value):
         timestamp = time.time()
         self.file_writer.write("{},{},{},{}\n".format(episode, timestamp, metric_name, value))
+        self.tb_writer.add_scalar(metric_name, value, episode)

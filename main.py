@@ -68,20 +68,29 @@ def run(env, config,
                     if use_target:
                         qcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2], ep_actions[-1], target_q=target_qcritic)
                         q_state_dict = qcritic.state_dict()
+                        # target_qcritic.load_state_dict(q_state_dict)
 
-                        # target_state_dict = target_qcritic.state_dict()
+                        target_state_dict = target_qcritic.state_dict()
 
-                        # for name, param in target_state_dict.items():
-                        #     if not "weight" in name:
-                        #         continue
-                        #     param.data = (1-config.tau)*param.data + config.tau*q_state_dict[name].data
-                        #     target_state_dict[name].copy_(param)
-                        # target_qcritic.load_state_dict(target_state_dict)
-                        target_qcritic.load_state_dict(q_state_dict)
+                        for name, param in target_state_dict.items():
+                            if not "weight" in name:
+                                continue
+                            param.data = config.tau*param.data + (1-config.tau)*q_state_dict[name].data
+                            target_state_dict[name].copy_(param)
+                        target_qcritic.load_state_dict(target_state_dict)
+
                     else:
                         qcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2], ep_actions[-1])
 
                 vcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2])
+
+        # Do last critic update step.
+        if use_qcritic:
+            if use_target:
+                qcritic.apply_gradient(ep_states[-2], ep_actions[-1], ep_rewards[-1], None, None, target_q=target_qcritic)
+            else:
+                qcritic.apply_gradient(ep_states[-2], ep_actions[-1], ep_rewards[-1], None, None)
+        vcritic.apply_gradient(ep_states[-2], ep_actions[-1], ep_rewards[-1], None)
 
         if use_qcritic:
             policy.apply_gradient_episode(ep_states, ep_actions, ep_rewards, episode, qcritic, vcritic)

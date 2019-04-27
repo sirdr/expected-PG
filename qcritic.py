@@ -34,21 +34,16 @@ class QCritic(nn.Module):
         self.optimizer.zero_grad()
         current_Q = self.forward(torch.from_numpy(s1).float(), torch.from_numpy(a1).float())
         if target_q is None:
-            y = r + self.gamma * self.forward(torch.from_numpy(s2).float(), torch.from_numpy(a2).float())
+            if s2 is None:
+                y = torch.tensor(r).float()
+            else:
+                y = r + self.gamma * self.forward(torch.from_numpy(s2).float(), torch.from_numpy(a2).float())
         else:
-            y = r + self.gamma * target_q.forward(torch.from_numpy(s2).float(), torch.from_numpy(a2).float())
-        loss = nn.MSELoss()(current_Q, y)
+            if s2 is None:
+                y = torch.tensor(r).float()
+            else:
+                y = r + self.gamma * target_q.forward(torch.from_numpy(s2).float(), torch.from_numpy(a2).float())
+        loss = nn.MSELoss()(current_Q, y.detach())
         loss.backward()
         self.optimizer.step()
         return
-
-    def compute_returns(self, rewards_by_path):
-        returns = []
-        for reward_path in rewards_by_path:
-            g = np.array(reward_path)
-            n_transitions = len(g)
-            g = (self.gamma ** np.arange(n_transitions)) * g
-            g = np.cumsum(g[::-1])[::-1] / (self.gamma ** np.arange(n_transitions))
-            returns.append(g)
-        returns = np.concatenate(returns)
-        return returns
