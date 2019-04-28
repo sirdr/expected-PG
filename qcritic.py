@@ -38,10 +38,10 @@ class QCritic(nn.Module):
         self.optimizer.zero_grad()
         current_Q = self.forward(torch.from_numpy(s1).float(), torch.from_numpy(a1).float())
         if target_q is None:
-            y = r + (1 - int(done)) * self.gamma * self.forward(torch.from_numpy(s2).float(), torch.from_numpy(a2).float())
+            y = r + (1 - int(done)) * self.gamma * self.forward(torch.from_numpy(s2).float(), torch.from_numpy(a2).float()).detach()
         else:
-            y = r + (1 - int(done)) * self.gamma * target_q.forward(torch.from_numpy(s2).float(), torch.from_numpy(a2).float())
-        loss = nn.MSELoss()(current_Q, y.detach())
+            y = r + (1 - int(done)) * self.gamma * target_q.forward(torch.from_numpy(s2).float(), torch.from_numpy(a2).float()).detach()
+        loss = nn.MSELoss()(current_Q, y)
         loss.backward()
         self.optimizer.step()
         return

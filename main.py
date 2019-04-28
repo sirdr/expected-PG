@@ -49,6 +49,10 @@ def run(env, config,
             target_qcritic = QCritic(env, config)
             target_qcritic.load_state_dict(qcritic.state_dict())
             target_qcritic.eval()
+
+            target_policy = get_policy(policy_type, env, config, metrics_writer)
+            target_policy.load_state_dict(policy.state_dict())
+            target_policy.eval()
     else:
         use_qcritic = False
 
@@ -80,25 +84,48 @@ def run(env, config,
             if(len(ep_actions) >= 2):
                 if use_qcritic:
                     if use_target:
-                        qcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2], ep_actions[-1], ep_dones[-2], target_q=target_qcritic)
+                        next_action = target_policy.get_action(observation)
+                        next_action = ep_actions[-1]
+                        qcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2], next_action, ep_dones[-2], target_q=target_qcritic)
+                        q_state_dict = qcritic.state_dict()
+
+                        target_state_dict = target_qcritic.state_dict()
+
+                        for name, param in target_state_dict.items():
+                            if not "weight" in name:
+                                continue
+                            print(q_state_dict[name].data)
+                            param.data = (1-config.tau)*param.data + config.tau*q_state_dict[name].data
+                            target_state_dict[name].copy_(param)
+                        target_qcritic.load_state_dict(target_state_dict)
+
+                        policy_state_dict = policy.state_dict()
+                        target_policy_state_dict = target_policy.state_dict()
+
+                        for name, param in target_policy_state_dict.items():
+                            if not "weight" in name:
+                                continue
+                            param.data = (1-config.tau)*param.data + config.tau*policy_state_dict[name].data
+                            target_policy_state_dict[name].copy_(param)
+                        target_policy.load_state_dict(target_policy_state_dict)
 
                     else:
                         qcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2], ep_actions[-1], ep_dones[-2])
 
                 vcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2], ep_dones[-2])
 
-        if use_target:
-            q_state_dict = qcritic.state_dict()
+        # if use_target:
+        #     q_state_dict = qcritic.state_dict()
 
-            # target_state_dict = target_qcritic.state_dict()
+        #     target_state_dict = target_qcritic.state_dict()
 
-            # for name, param in target_state_dict.items():
-            #     if not "weight" in name:
-            #         continue
-            #     param.data = (1-config.tau)*param.data + config.tau*q_state_dict[name].data
-            #     target_state_dict[name].copy_(param)
-            # target_qcritic.load_state_dict(target_state_dict)
-            target_qcritic.load_state_dict(q_state_dict)
+        #     for name, param in target_state_dict.items():
+        #         if not "weight" in name:
+        #             continue
+        #         param.data = (1-config.tau)*param.data + config.tau*q_state_dict[name].data
+        #         target_state_dict[name].copy_(param)
+        #     target_qcritic.load_state_dict(target_state_dict)
+            # target_qcritic.load_state_dict(q_state_dict)
         if use_qcritic:
             policy.apply_gradient_episode(ep_states, ep_actions, ep_rewards, episode, qcritic, vcritic)
         else:
