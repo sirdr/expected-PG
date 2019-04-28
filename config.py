@@ -6,4 +6,4 @@ class Config:
     n_samples_per_state = 100
     normalize_advantages = True
     learn_std = False
-    tau = 0.005
+    tau = .9
