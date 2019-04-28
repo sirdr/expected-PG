@@ -26,7 +26,7 @@ def get_env_name(proxy_name):
 
 def run(env, config,
         policy_type='integrate',
-        seed=7, 
+        seed=7,
         use_target=False,
         use_gpu=False,
         checkpoint_freq=1000,
@@ -43,6 +43,7 @@ def run(env, config,
 
     if policy_type == 'integrate' or policy_type == 'mc':
         use_qcritic = True
+        target_qcritic = None
         qcritic = QCritic(env, config)
         qcritic.train()
         if use_target:
@@ -66,7 +67,6 @@ def run(env, config,
         ep_states = [observation]
         ep_actions = []
         ep_rewards = []
-        ep_dones = []
 
         while not done:
             # env.render()
@@ -75,30 +75,27 @@ def run(env, config,
             ep_states.append(observation)
             ep_actions.append(action)
             ep_rewards.append(reward)
-            ep_dones.append(done)
             ep_length += 1
             if(len(ep_actions) >= 2):
                 if use_qcritic:
-                    if use_target:
-                        qcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2], ep_actions[-1], ep_dones[-2], target_q=target_qcritic)
+                    qcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2], ep_actions[-1], target_q=target_qcritic)
+                vcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2])
 
-                    else:
-                        qcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2], ep_actions[-1], ep_dones[-2])
-
-                vcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2], ep_dones[-2])
+        if use_qcritic:
+            qcritic.apply_gradient(ep_states[-2], ep_actions[-1], ep_rewards[-1], None, None, target_q = target_qcritic)
+        vcritic.apply_gradient(ep_states[-2], ep_actions[-1], ep_rewards[-1], None)
 
         if use_target:
             q_state_dict = qcritic.state_dict()
+            # target_qcritic.load_state_dict(q_state_dict)
+            target_state_dict = target_qcritic.state_dict()
+            for name, param in target_state_dict.items():
+                if not ("weight" in name or "bias" in name):
+                    continue
+                param.data = (1-config.tau)*param.data + config.tau*q_state_dict[name].data
+                target_state_dict[name].copy_(param)
+            target_qcritic.load_state_dict(target_state_dict)
 
-            # target_state_dict = target_qcritic.state_dict()
-
-            # for name, param in target_state_dict.items():
-            #     if not "weight" in name:
-            #         continue
-            #     param.data = (1-config.tau)*param.data + config.tau*q_state_dict[name].data
-            #     target_state_dict[name].copy_(param)
-            # target_qcritic.load_state_dict(target_state_dict)
-            target_qcritic.load_state_dict(q_state_dict)
         if use_qcritic:
             policy.apply_gradient_episode(ep_states, ep_actions, ep_rewards, episode, qcritic, vcritic)
         else:
@@ -132,11 +129,11 @@ if __name__ == '__main__':
     ## TODO: figure out how to run using GPU
     ## TODO: add other envs / make sure that trapezoidal works on higher dimensions
 
-    ## TODO: add the done 
+    ## TODO: add the done
     ## TODO: figure out the detach issue / target Q
     ## TODO: investigate unlearning
 
-    ## TODO: run integrate to investigate unlearning 
+    ## TODO: run integrate to investigate unlearning
 
     ## TODO: add gradient comparison script
 
