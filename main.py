@@ -30,7 +30,7 @@ def run(env, config,
         use_target=False,
         use_gpu=False,
         checkpoint_freq=1000,
-        num_episodes=4000):
+        num_episodes=5000):
 
     env.seed(seed)
     torch.manual_seed(seed)
@@ -88,7 +88,7 @@ def run(env, config,
                 for name, param in target_state_dict.items():
                     if not ("weight" in name or "bias" in name):
                         continue
-                    param.data = (1-config.tau)*param.data + config.tau*q_state_dict[name].data
+                    param.data = config.tau*param.data + (1-config.tau)*q_state_dict[name].data
                     target_state_dict[name].copy_(param)
                 target_qcritic.load_state_dict(target_state_dict)
 
