@@ -9,7 +9,7 @@ from torch.autograd import backward, Variable
 Q-Critic is trained by SARSA (learning current policy's state-action values).
 '''
 class QCritic(nn.Module):
-    def __init__(self, env, config, use_gpu=False):
+    def __init__(self, env, config, metrics_writer, use_gpu=False):
         super(QCritic, self).__init__()
         self.state_space = env.observation_space.shape[0]
         self.action_space = env.action_space.shape[0]
@@ -26,6 +26,8 @@ class QCritic(nn.Module):
         self.gamma = config.gamma
 
         self.optimizer = optim.Adam(self.parameters(), lr=config.critic_lr)
+        self.metrics_writer = metrics_writer
+        self.step = 0
 
     def forward(self, state, action):
         concat = torch.cat((state, action), -1)
@@ -50,6 +52,10 @@ class QCritic(nn.Module):
         loss = nn.MSELoss()(current_Q, y.detach())
         loss.backward()
         self.optimizer.step()
+
+        for name, param in self.named_parameters():
+            self.metrics_writer.write_metric(self.step, f"qcritic_grad_norm_{name}", torch.norm(param.grad))
+        self.step += 1
         return
 
     def compute_returns(self, rewards_by_path):

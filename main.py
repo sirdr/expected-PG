@@ -44,10 +44,10 @@ def run(env, config,
     if policy_type == 'integrate' or policy_type == 'mc':
         use_qcritic = True
         target_qcritic = None
-        qcritic = QCritic(env, config)
+        qcritic = QCritic(env, config, metrics_writer)
         qcritic.train()
         if use_target:
-            target_qcritic = QCritic(env, config)
+            target_qcritic = QCritic(env, config, metrics_writer)
             target_qcritic.load_state_dict(qcritic.state_dict())
             target_qcritic.eval()
     else:
