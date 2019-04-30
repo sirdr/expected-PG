@@ -148,6 +148,8 @@ if __name__ == '__main__':
 
     ## TODO: add gradient comparison script
 
+    ## try fixed updating of policy versus after every episode
+
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--policy', required=True, type=str,
