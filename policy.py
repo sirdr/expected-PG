@@ -115,7 +115,7 @@ class PolicyMC(Policy):
 
         advantages = qcritic(states.repeat(self.n_samples_per_state, 1), actions).flatten().detach() - vcritic(states.repeat(self.n_samples_per_state,1)).flatten().detach()
         if(self.normalize_advantages):
-            advantages = (advantages - torch.mean(advantages)) / torch.std(advantages)
+            advantages = (advantages - torch.mean(advantages)) / (0.1 + torch.std(advantages))
 
         log_probs = torch.distributions.normal.Normal(action_means, std).log_prob(actions).flatten()
 

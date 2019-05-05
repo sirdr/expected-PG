@@ -13,6 +13,18 @@ from config import Config
 from metrics import MetricsWriter
 from utils import *
 
+def soft_update(target_model, model, tau=0.95):
+    model_state_dict = model.state_dict()
+    # target_qcritic.load_state_dict(q_state_dict)
+    target_state_dict = target_model.state_dict()
+    for name, param in target_state_dict.items():
+        if not ("weight" in name or "bias" in name):
+            continue
+        param.data = tau*param.data + (1-tau)*model_state_dict[name].data
+        target_state_dict[name].copy_(param)
+    target_model.load_state_dict(target_state_dict)
+
+
 def get_env_name(proxy_name):
     if proxy_name == 'inv-pendulum':
         return 'InvertedPendulum-v1'
@@ -28,9 +40,11 @@ def run(env, config,
         policy_type='integrate',
         seed=7,
         use_target=False,
+        use_policy_target=False,
         use_gpu=False,
         checkpoint_freq=1000,
-        num_episodes=4000):
+        num_episodes=5000,
+        policy_update_frequency=100):
 
     env.seed(seed)
     torch.manual_seed(seed)
@@ -44,12 +58,17 @@ def run(env, config,
     if policy_type == 'integrate' or policy_type == 'mc':
         use_qcritic = True
         target_qcritic = None
-        qcritic = QCritic(env, config)
+        qcritic = QCritic(env, config, metrics_writer)
         qcritic.train()
         if use_target:
-            target_qcritic = QCritic(env, config)
+            target_qcritic = QCritic(env, config, metrics_writer)
             target_qcritic.load_state_dict(qcritic.state_dict())
             target_qcritic.eval()
+        if use_policy_target:
+            target_policy = get_policy(policy_type, env, config, metrics_writer)
+            target_policy.load_state_dict(policy.state_dict())
+            target_policy.eval()
+
     else:
         use_qcritic = False
 
@@ -57,6 +76,11 @@ def run(env, config,
     vcritic.train()
 
     total_steps = 0
+    timesteps = 0
+
+    # ep_states = [observation]
+    # ep_actions = []
+    # ep_rewards = []
 
     for episode in range(num_episodes):
 
@@ -78,17 +102,15 @@ def run(env, config,
             ep_length += 1
             if(len(ep_actions) >= 2):
                 if use_qcritic:
-                    qcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2], ep_actions[-1], target_q=target_qcritic)
+                    if use_policy_target:
+                        next_action = target_policy.get_action(observation)
+                    else:
+                        next_action = ep_actions[-1]
+                    qcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2], next_action, target_q=target_qcritic)
                     if use_target:
-                        q_state_dict = qcritic.state_dict()
-                        # target_qcritic.load_state_dict(q_state_dict)
-                        target_state_dict = target_qcritic.state_dict()
-                        for name, param in target_state_dict.items():
-                            if not ("weight" in name or "bias" in name):
-                                continue
-                            param.data = (1-config.tau)*param.data + config.tau*q_state_dict[name].data
-                            target_state_dict[name].copy_(param)
-                        target_qcritic.load_state_dict(target_state_dict)
+                        soft_update(target_qcritic, qcritic, tau=config.tau)
+                    if use_policy_target:
+                        soft_update(target_policy, policy, tau=config.tau)
                         
                 vcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2])
 
@@ -99,18 +121,27 @@ def run(env, config,
             #     for name, param in target_state_dict.items():
             #         if not ("weight" in name or "bias" in name):
             #             continue
-            #         param.data = (1-config.tau)*param.data + config.tau*q_state_dict[name].data
+            #         param.data = config.tau*param.data + (1-config.tau)*q_state_dict[name].data
             #         target_state_dict[name].copy_(param)
             #     target_qcritic.load_state_dict(target_state_dict)
-
-        if use_qcritic:
-            qcritic.apply_gradient(ep_states[-2], ep_actions[-1], ep_rewards[-1], None, None, target_q = target_qcritic)
-        vcritic.apply_gradient(ep_states[-2], ep_actions[-1], ep_rewards[-1], None)
+            # if timesteps % policy_update_frequency == 0:
+            #     if use_qcritic:
+            #         policy.apply_gradient_episode(ep_states, ep_actions, ep_rewards, episode, qcritic, vcritic)
+            #     else:
+            #         policy.apply_gradient_episode(ep_states, ep_actions, ep_rewards, episode, vcritic)
+            #     ep_states = [observation]
+            #     ep_actions = []
+            #     ep_rewards = []
+            # timesteps += 1
 
         if use_qcritic:
             policy.apply_gradient_episode(ep_states, ep_actions, ep_rewards, episode, qcritic, vcritic)
         else:
             policy.apply_gradient_episode(ep_states, ep_actions, ep_rewards, episode, vcritic)
+
+        if use_qcritic:
+            qcritic.apply_gradient(ep_states[-2], ep_actions[-1], ep_rewards[-1], None, None, target_q = target_qcritic)
+        vcritic.apply_gradient(ep_states[-2], ep_actions[-1], ep_rewards[-1], None)
 
         total_reward = np.sum(ep_rewards)
         print("Episode: {0} | Average score in batch: {1}".format(episode, total_reward))
@@ -156,6 +187,7 @@ if __name__ == '__main__':
                     choices=['reinforce', 'mc', 'integrate'])
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--use_target', action='store_true')
+    parser.add_argument('--use_policy_target', action='store_true')
     parser.add_argument('--use_gpu', action='store_true')
     parser.add_argument('--env', required=True, type=str,
                         choices=['inv-pendulum', 'walker', 'cheetah', 'reacher'])
@@ -174,4 +206,4 @@ if __name__ == '__main__':
     print("Using seed {}".format(seed))
 
     config = Config()
-    run(env, config, policy_type=args.policy, seed=seed, use_target=args.use_target, use_gpu=args.use_gpu)
+    run(env, config, policy_type=args.policy, seed=seed, use_target=args.use_target, use_policy_target=args.use_policy_target, use_gpu=args.use_gpu)
