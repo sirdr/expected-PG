@@ -23,7 +23,6 @@ def get_env_name(proxy_name):
     if proxy_name == 'reacher':
         return 'Reacher2d-v1'
 
-
 def run(env, config,
         policy_type='integrate',
         seed=7,
