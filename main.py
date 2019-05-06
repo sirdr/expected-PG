@@ -35,7 +35,6 @@ def get_env_name(proxy_name):
     if proxy_name == 'reacher':
         return 'Reacher2d-v1'
 
-
 def run(env, config,
         policy_type='integrate',
         seed=7,
@@ -82,11 +81,17 @@ def run(env, config,
     # ep_actions = []
     # ep_rewards = []
 
+
     for episode in range(num_episodes):
 
         observation = env.reset()
         done = False
         ep_length = 0
+
+        # if timesteps == 0:
+        #     policy_states = [observation]
+        #     policy_actions = []
+        #     policy_rewards = []
 
         ep_states = [observation]
         ep_actions = []
@@ -99,6 +104,11 @@ def run(env, config,
             ep_states.append(observation)
             ep_actions.append(action)
             ep_rewards.append(reward)
+
+            # policy_states.append(observation)
+            # policy_actions.append(action)
+            # policy_rewards.append(reward)
+
             ep_length += 1
             if(len(ep_actions) >= 2):
                 if use_qcritic:
@@ -126,12 +136,14 @@ def run(env, config,
             #     target_qcritic.load_state_dict(target_state_dict)
             # if timesteps % policy_update_frequency == 0:
             #     if use_qcritic:
-            #         policy.apply_gradient_episode(ep_states, ep_actions, ep_rewards, episode, qcritic, vcritic)
+            #         policy.apply_gradient_episode(policy_states, policy_actions, policy_rewards, timesteps, qcritic, vcritic)
             #     else:
-            #         policy.apply_gradient_episode(ep_states, ep_actions, ep_rewards, episode, vcritic)
-            #     ep_states = [observation]
-            #     ep_actions = []
-            #     ep_rewards = []
+            #         policy.apply_gradient_episode(policy_states, policy_actions, policy_rewards, timesteps, vcritic)
+
+            #     policy_states = [observation]
+            #     policy_actions = []
+            #     policy_rewards =[]
+
             # timesteps += 1
 
         if use_qcritic:

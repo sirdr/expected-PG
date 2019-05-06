@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.autograd import backward, Variable
+import pdb
 
 '''
 Q-Critic is trained by SARSA (learning current policy's state-action values).
@@ -56,6 +57,20 @@ class QCritic(nn.Module):
         for name, param in self.named_parameters():
             self.metrics_writer.write_metric(self.step, f"qcritic_grad_norm_{name}", torch.norm(param.grad))
         self.step += 1
+        return
+
+    def apply_gradient_episode(self, ep_states, ep_actions, ep_rewards):
+        self.optimizer.zero_grad()
+        states = torch.tensor(np.array(ep_states[:-2])).float()
+        actions = torch.tensor(np.array(ep_actions[:-1])).float()
+        next_actions = torch.tensor(np.array(ep_actions[1:])).float()
+        rewards = torch.tensor(ep_rewards[:-1]).float()
+        next_states = torch.tensor(np.array(ep_states[1:-1])).float()
+        current_Q = self.forward(states, actions).flatten()
+        next_Q = rewards + self.gamma * self.forward(next_states, next_actions).flatten()
+        loss = nn.MSELoss()(current_Q, next_Q.detach())
+        loss.backward()
+        self.optimizer.step()
         return
 
     def compute_returns(self, rewards_by_path):
