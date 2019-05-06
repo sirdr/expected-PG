@@ -9,23 +9,23 @@ from torch.autograd import backward, Variable
 Q-Critic is trained by SARSA (learning current policy's state-action values).
 '''
 class QCritic(nn.Module):
-    def __init__(self, env, config):
+    def __init__(self, env, config, use_gpu=False):
         super(QCritic, self).__init__()
         self.state_space = env.observation_space.shape[0]
         self.action_space = env.action_space.shape[0]
-        # Upper and lower bound on action space (it is a box).
-        self.action_space_high = env.action_space.high
-        self.action_space_low = env.action_space.low
 
         # Input is a concatenation of state and action.
         self.l1 = nn.Linear(self.state_space + self.action_space, 48)
         # Output a single Q value for that state and action.
         self.l2 = nn.Linear(48, 1)
 
+        if use_gpu:
+            self.l1 = self.l1.cuda()
+            self.l2 = self.l2.cuda()
+
         self.gamma = config.gamma
 
         self.optimizer = optim.Adam(self.parameters(), lr=config.critic_lr)
-        #self.optimizer = optim.SGD(self.parameters(), lr=config.critic_lr) 
 
     def forward(self, state, action):
         concat = torch.cat((state, action), -1)
@@ -34,14 +34,13 @@ class QCritic(nn.Module):
         out = self.l2(out)
         return out
 
-    def apply_gradient(self, s1, a1, r, s2, a2, target_q=None):
+    def apply_gradient(self, s1, a1, r, s2, a2, done, target_q=None):
         self.optimizer.zero_grad()
         current_Q = self.forward(torch.from_numpy(s1).float(), torch.from_numpy(a1).float())
-        # print(f"Current Q: {current_Q} - Target: {r + self.gamma * self.forward(torch.from_numpy(s2).float(), torch.from_numpy(a2).float())}")
         if target_q is None:
-            y = r + self.gamma * self.forward(torch.from_numpy(s2).float(), torch.from_numpy(a2).float())
+            y = r + (1 - int(done)) * self.gamma * self.forward(torch.from_numpy(s2).float(), torch.from_numpy(a2).float()).detach()
         else:
-            y = r + self.gamma * target_q.forward(torch.from_numpy(s2).float(), torch.from_numpy(a2).float()).detach()
+            y = r + (1 - int(done)) * self.gamma * target_q.forward(torch.from_numpy(s2).float(), torch.from_numpy(a2).float()).detach()
         loss = nn.MSELoss()(current_Q, y)
         loss.backward()
         self.optimizer.step()
@@ -57,14 +56,3 @@ class QCritic(nn.Module):
             returns.append(g)
         returns = np.concatenate(returns)
         return returns
-
-    def apply_gradient_batch(self, states, actions, rewards):
-        self.optimizer.zero_grad()
-        returns = self.compute_returns(rewards)
-        states = np.vstack([state for episode in states for state in episode[:-1]])
-        actions = np.vstack([action for episode in actions for action in episode])
-        current_Q = self.forward(torch.from_numpy(states).float(), torch.from_numpy(actions).float())
-        loss = nn.MSELoss()(current_Q, torch.from_numpy(returns).float())
-        loss.backward()
-        self.optimizer.step()
-        return

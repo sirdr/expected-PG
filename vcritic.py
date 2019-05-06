@@ -6,16 +6,12 @@ import torch.nn.functional as F
 from torch.autograd import backward, Variable
 
 '''
-V-Critic is trained by TF (learning current policy value).
+V-Critic is trained by TD (learning current policy value).
 '''
 class VCritic(nn.Module):
     def __init__(self, env, config):
         super(VCritic, self).__init__()
         self.state_space = env.observation_space.shape[0]
-        self.action_space = env.action_space.shape[0]
-        # Upper and lower bound on action space (it is a box).
-        self.action_space_high = env.action_space.high
-        self.action_space_low = env.action_space.low
 
         # Input is a concatenation of state and action.
         self.l1 = nn.Linear(self.state_space, 10)
@@ -25,7 +21,6 @@ class VCritic(nn.Module):
         self.gamma = config.gamma
 
         self.optimizer = optim.Adam(self.parameters(), lr=config.critic_lr)
-        # self.optimizer = optim.SGD(self.parameters(), lr=config.critic_lr)
 
     def forward(self, state):
         out = self.l1(state)
@@ -33,10 +28,11 @@ class VCritic(nn.Module):
         out = self.l2(out)
         return out
 
-    def apply_gradient(self, s1, a1, r, s2):
+    def apply_gradient(self, s1, a1, r, s2, done):
         self.optimizer.zero_grad()
         current_V = self.forward(torch.from_numpy(s1).float())
-        loss = nn.MSELoss()(current_V, r + self.gamma * self.forward(torch.from_numpy(s2).float()))
+        next_V = r + (1 - int(done)) * self.gamma * self.forward(torch.from_numpy(s2).float())
+        loss = nn.MSELoss()(current_V, next_V)
         loss.backward()
         self.optimizer.step()
         return
@@ -51,13 +47,3 @@ class VCritic(nn.Module):
             returns.append(g)
         returns = np.concatenate(returns)
         return returns
-
-    def apply_gradient_batch(self, states, rewards):
-        self.optimizer.zero_grad()
-        returns = self.compute_returns(rewards)
-        states = np.vstack([state for episode in states for state in episode[:-1]])
-        current_V = self.forward(torch.from_numpy(states).float())
-        loss = nn.MSELoss()(current_V, torch.from_numpy(returns).float())
-        loss.backward()
-        self.optimizer.step()
-        return
