@@ -16,7 +16,7 @@ from tensorboardX import SummaryWriter
 def clip(x, min, max):
     return (x >= max) * max + (x <= min) * min + (x <= max * x >= min) * x
 
-def get_policy(policy_type, env, config, writer):
+def get_policy(policy_type, env, config, writer, num_actions):
     policy = None
 
     if policy_type == 'mc':
@@ -29,14 +29,14 @@ def get_policy(policy_type, env, config, writer):
         print("invalid policy type") #should never get here
     return policy
 
-def get_writer_name(policy_type, config, seed):
-    name = ""
+def get_writer_name(policy_type, config, seed, use_target, env_name, num_actions, run_id='NA', exp_id='NA'):
+    name = "{}-{}-{}-{}-{}-exp_id={}-run_id={}-learnStd={}-seed={}-use_target={}-{}".format(policy_type, env_name, config.critic_lr, config.policy_lr, config.normalize_advantages, exp_id, run_id, config.learn_std, seed, use_target, int(time.time()))
     if policy_type == 'mc':
-        name = f'mc-{config.critic_lr}-{config.policy_lr}-{config.normalize_advantages}-SS{config.n_samples_per_state}-learnStd={config.learn_std}-{seed}-{int(time.time())}'
+        name = name+'-num_samples={}'.format(num_actions)
     elif policy_type == 'reinforce':
-        name = f'reinforce-{config.critic_lr}-{config.policy_lr}-{config.normalize_advantages}-learnStd={config.learn_std}-{seed}-{int(time.time())}'
+        pass
     elif policy_type == 'integrate':
-        name = f'integration-{config.critic_lr}-{config.policy_lr}-{config.normalize_advantages}-learnStd={config.learn_std}-{seed}-{int(time.time())}'
+        name = name+'-num_actions={}'.format(num_actions)
     else:
         print("invalid policy type") #should never get here
     return name

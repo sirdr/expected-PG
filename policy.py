@@ -96,9 +96,9 @@ class PolicyReinforce(Policy): # Previously: PolicyBackward
     This variant uses backward() to train the policy in an episodic fashion, using the standard REINFORCE update.
 '''
 class PolicyMC(Policy):
-    def __init__(self, env, config, metrics_writer):
+    def __init__(self, env, config, metrics_writer, num_actions=100):
         super(PolicyMC, self).__init__(env, config, metrics_writer)
-        self.n_samples_per_state = config.n_samples_per_state
+        self.n_samples_per_state = num_actions
 
     def apply_gradient_episode(self, ep_states, ep_actions, ep_rewards, episode, qcritic, vcritic):
 

@@ -35,7 +35,7 @@ def get_env_name(proxy_name):
     if proxy_name == 'reacher':
         return 'Reacher2d-v1'
 
-def run(env, config,
+def run(env_name, config,
         policy_type='integrate',
         seed=7,
         use_target=False,
@@ -43,16 +43,22 @@ def run(env, config,
         use_gpu=False,
         checkpoint_freq=1000,
         num_episodes=5000,
-        policy_update_frequency=100):
+        policy_update_frequency=100,
+        run_id='NA',
+        exp_id='NA',
+        num_actions=1000):
+
+    env = gym.make(env_name)
+    print("Using seed {}".format(seed))
 
     env.seed(seed)
     torch.manual_seed(seed)
 
-    run_name = get_writer_name(policy_type, config, seed)
+    run_name = get_writer_name(policy_type, config, seed, use_target, env_name, num_actions, run_id=run_id, exp_id=exp_id)
     metrics_writer = MetricsWriter(run_name)
 
     vcritic = VCritic(env, config)
-    policy = get_policy(policy_type, env, config, metrics_writer)
+    policy = get_policy(policy_type, env, config, metrics_writer, num_actions)
 
     if policy_type == 'integrate' or policy_type == 'mc':
         use_qcritic = True
@@ -191,7 +197,11 @@ if __name__ == '__main__':
 
     ## TODO: add gradient comparison script
 
-    ## try fixed updating of policy versus after every episode
+    ## TODO: add env_name, task_id to writer
+
+    ## TODO: finish eval 
+
+
 
 
     parser = argparse.ArgumentParser()
@@ -203,6 +213,9 @@ if __name__ == '__main__':
     parser.add_argument('--use_gpu', action='store_true')
     parser.add_argument('--env', required=True, type=str,
                         choices=['inv-pendulum', 'walker', 'cheetah', 'reacher'])
+    parser.add_argument('--run_id', type=str, default='NA')
+    parser.add_argument('--exp_id', type=str, default='NA')
+    parser.add_argument('--num_actions', type=int, default=1000)
     #parser.add_argument('--model_path', required=True, type=str)
 
 
@@ -214,8 +227,14 @@ if __name__ == '__main__':
         seed = args.seed
 
     env_name = get_env_name(args.env)
-    env = gym.make(env_name)
-    print("Using seed {}".format(seed))
 
     config = Config()
-    run(env, config, policy_type=args.policy, seed=seed, use_target=args.use_target, use_policy_target=args.use_policy_target, use_gpu=args.use_gpu)
+    run(env_name, config, 
+        policy_type=args.policy, 
+        seed=seed, 
+        use_target=args.use_target, 
+        use_policy_target=args.use_policy_target, 
+        use_gpu=args.use_gpu, 
+        run_id=args.run_id,
+        exp_id=args.exp_id, 
+        num_actions=args.num_actions)
