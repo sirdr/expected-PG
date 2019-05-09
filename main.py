@@ -237,6 +237,8 @@ if __name__ == '__main__':
     config = get_config(args.env)
     config.n_samples_per_state = args.num_actions
 
+    start_time = time.time()
+
     run(env_name, config,
         policy_type=args.policy,
         seed=seed,
@@ -246,3 +248,7 @@ if __name__ == '__main__':
         run_id=args.run_id,
         exp_id=args.exp_id,
         num_episodes=args.num_episodes)
+
+    end_time = time.time()
+
+    print("start time: {} | end time: {} | duration: {}".format(start_time, end_time, end_time-start_time))
