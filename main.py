@@ -43,7 +43,6 @@ def run(env_name, config,
         use_gpu=False,
         checkpoint_freq=1000,
         num_episodes=5000,
-        policy_update_frequency=100,
         run_id='NA',
         exp_id='NA',
         num_actions=1000):
@@ -83,21 +82,11 @@ def run(env_name, config,
     total_steps = 0
     timesteps = 0
 
-    # ep_states = [observation]
-    # ep_actions = []
-    # ep_rewards = []
-
-
     for episode in range(num_episodes):
 
         observation = env.reset()
         done = False
         ep_length = 0
-
-        # if timesteps == 0:
-        #     policy_states = [observation]
-        #     policy_actions = []
-        #     policy_rewards = []
 
         ep_states = [observation]
         ep_actions = []
@@ -110,10 +99,6 @@ def run(env_name, config,
             ep_states.append(observation)
             ep_actions.append(action)
             ep_rewards.append(reward)
-
-            # policy_states.append(observation)
-            # policy_actions.append(action)
-            # policy_rewards.append(reward)
 
             ep_length += 1
             if(len(ep_actions) >= 2):
@@ -129,28 +114,6 @@ def run(env_name, config,
                         soft_update(target_policy, policy, tau=config.tau)
                         
                 vcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2])
-
-            # if use_target:
-            #     q_state_dict = qcritic.state_dict()
-            #     # target_qcritic.load_state_dict(q_state_dict)
-            #     target_state_dict = target_qcritic.state_dict()
-            #     for name, param in target_state_dict.items():
-            #         if not ("weight" in name or "bias" in name):
-            #             continue
-            #         param.data = config.tau*param.data + (1-config.tau)*q_state_dict[name].data
-            #         target_state_dict[name].copy_(param)
-            #     target_qcritic.load_state_dict(target_state_dict)
-            # if timesteps % policy_update_frequency == 0:
-            #     if use_qcritic:
-            #         policy.apply_gradient_episode(policy_states, policy_actions, policy_rewards, timesteps, qcritic, vcritic)
-            #     else:
-            #         policy.apply_gradient_episode(policy_states, policy_actions, policy_rewards, timesteps, vcritic)
-
-            #     policy_states = [observation]
-            #     policy_actions = []
-            #     policy_rewards =[]
-
-            # timesteps += 1
 
         if use_qcritic:
             policy.apply_gradient_episode(ep_states, ep_actions, ep_rewards, episode, qcritic, vcritic)
@@ -182,7 +145,7 @@ def run(env_name, config,
 
 if __name__ == '__main__':
 
-    # TODO: 4000 episodes each, 25 iterations
+    # TODO: 7000 episodes each, ~10 iterations
     # TODO: Vary sample size for MC and Fixed Grid (1, 5, 10, 20, 100, 1000)
     # TODO: Simpsons 2000, 10 iterations (1, 5, 10, 20, 100, 1000)
 
@@ -200,8 +163,6 @@ if __name__ == '__main__':
     ## TODO: add env_name, task_id to writer
 
     ## TODO: finish eval 
-
-
 
 
     parser = argparse.ArgumentParser()
