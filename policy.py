@@ -22,8 +22,11 @@ class Policy(nn.Module):
         self.action_space_high = torch.from_numpy(env.action_space.high).float()
         self.action_space_low = torch.from_numpy(env.action_space.low).float()
 
-        self.l1 = nn.Linear(self.state_space, 16)
-        self.l2 = nn.Linear(16, self.action_space)
+        self.layers = [nn.Linear(self.state_space, config.policy_layers[0])]
+        for i in range(1, len(config.policy_layers)):
+            self.layers.append(nn.Linear(config.policy_layers[i-1], config.policy_layers[i]))
+        self.layers.append(nn.Linear(config.policy_layers[-1], self.action_space))
+        self.layers = nn.ModuleList(self.layers)
 
         if config.learn_std:
             self.log_std = torch.nn.Parameter(torch.tensor([np.log(0.2)], dtype=torch.float32), requires_grad=True)
@@ -36,11 +39,11 @@ class Policy(nn.Module):
         self.optimizer = optim.Adam(self.parameters(), lr=config.policy_lr)
         self.metrics_writer = metrics_writer
 
-    def forward(self, state):
-        out = self.l1(state)
-        out = F.relu(out)
-        out = self.l2(out)
-        return out
+    def forward(self, out):
+        for layer in self.layers[:-1]:
+            out = layer(out)
+            out = F.relu(out)
+        return self.layers[-1](out)
 
     def get_action(self, state):
         state = torch.from_numpy(state).type(torch.FloatTensor)
@@ -51,21 +54,18 @@ class Policy(nn.Module):
         return np.clip(sample, self.action_space_low.numpy(), self.action_space_high.numpy())
 
 
-class PolicyReinforce(Policy): # Previously: PolicyBackward
+class PolicyReinforce(Policy):
     def __init__(self, env, config, metrics_writer):
         super(PolicyReinforce, self).__init__(env, config, metrics_writer)
         self.normalize_advantages = config.normalize_advantages
 
-    def compute_advantages(self, states, rewards, vcritic=None, normalize=True):
+    def compute_advantages(self, states, rewards, vcritic=None):
         g = np.array(rewards)
         n_transitions = len(g)
         g = (self.gamma ** np.arange(n_transitions)) * g
         advantages = np.cumsum(g[::-1])[::-1] / (self.gamma ** np.arange(n_transitions))
-        if vcritic != None:
-            v_values = vcritic(torch.from_numpy(np.vstack(states)).float()).detach().numpy().flatten()
-            advantages -= v_values
-        if normalize:
-            advantages = (advantages - np.mean(advantages)) / (.1 + np.std(advantages))
+        if vcritic is not None:
+            advantages -= vcritic(torch.from_numpy(np.vstack(states)).float()).detach().numpy().flatten()
         return advantages
 
     def apply_gradient_episode(self, ep_states, ep_actions, ep_rewards, episode, vcritic):
@@ -74,16 +74,20 @@ class PolicyReinforce(Policy): # Previously: PolicyBackward
         n_states = len(ep_states)
         states = torch.tensor(np.array([state for state in ep_states[:-1]])).float()
         actions = torch.tensor(np.array([action for action in ep_actions])).float()
-        advantages = torch.tensor(self.compute_advantages(states, ep_rewards, vcritic=vcritic, normalize=self.normalize_advantages)).float()
-
-        std = torch.exp(self.log_std)
-        log_probs = torch.distributions.normal.Normal(self.forward(states), std).log_prob(actions).flatten()
-
-        loss = - torch.dot(log_probs, advantages) / n_states
-        loss.backward()
+        advantages = torch.tensor(self.compute_advantages(states, ep_rewards, vcritic=vcritic)).float()
 
         self.metrics_writer.write_metric(episode, "average_advantage", torch.mean(advantages))
         self.metrics_writer.write_metric(episode, "std_advantage", torch.std(advantages))
+
+        if(self.normalize_advantages):
+            advantages = (advantages - torch.mean(advantages)) / (0.1 + torch.std(advantages))
+
+        std = torch.exp(self.log_std)
+        log_probs = torch.sum(torch.distributions.normal.Normal(self.forward(states), std).log_prob(actions), dim=1)
+
+        loss = - torch.dot(log_probs, advantages.detach()) / n_states
+        loss.backward()
+
         for name, param in self.named_parameters():
             self.metrics_writer.write_metric(episode, f"grad_norm_{name}", torch.norm(param.grad))
 
@@ -113,17 +117,21 @@ class PolicyMC(Policy):
         sample = dist.sample()
         actions = torch.max(torch.min(sample, self.action_space_high), self.action_space_low)
 
-        advantages = qcritic(states.repeat(self.n_samples_per_state, 1), actions).flatten().detach() - vcritic(states.repeat(self.n_samples_per_state,1)).flatten().detach()
-        if(self.normalize_advantages):
-            advantages = (advantages - torch.mean(advantages)) / (0.1 + torch.std(advantages))
-
-        log_probs = torch.distributions.normal.Normal(action_means, std).log_prob(actions).flatten()
-
-        loss = - torch.dot(log_probs, advantages) / self.n_samples_per_state / n_states
-        loss.backward()
+        advantages = qcritic(states.repeat(self.n_samples_per_state, 1), actions).flatten().detach()
+        if vcritic is not None:
+            advantages -= vcritic(states.repeat(self.n_samples_per_state,1)).flatten().detach()
 
         self.metrics_writer.write_metric(episode, "average_advantage", torch.mean(advantages))
         self.metrics_writer.write_metric(episode, "std_advantage", torch.std(advantages))
+
+        if(self.normalize_advantages):
+            advantages = (advantages - torch.mean(advantages)) / (0.1 + torch.std(advantages))
+
+        log_probs = torch.sum(torch.distributions.normal.Normal(action_means, std).log_prob(actions), dim=1)
+
+        loss = - torch.dot(log_probs, advantages.detach()) / self.n_samples_per_state / n_states
+        loss.backward()
+
         for name, param in self.named_parameters():
             self.metrics_writer.write_metric(episode, f"grad_norm_{name}", torch.norm(param.grad))
 
@@ -202,11 +210,6 @@ class PolicyIntegrationTrapezoidal(Policy):
         states = torch.tensor(states).float()
         actions = torch.tensor(actions).float()
         weights = torch.tensor(weights).float()
-
-        # states = torch.tensor(np.reshape(np.tile(states, len(actions)), (len(actions) * num_states, -1))).float()
-
-        # actions = torch.tensor(actions).float().repeat(num_states, 1)
-        # weights = torch.tensor(weights).float().repeat(num_states, 1)
 
         action_means = self.forward(states)
 

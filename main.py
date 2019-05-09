@@ -5,23 +5,26 @@ import random
 import os
 import argparse
 import time
+import pdb
 
 from policy import PolicyMC, PolicyReinforce, PolicyIntegrationTrapezoidal
 from qcritic import QCritic
 from vcritic import VCritic
-from config import Config
 from metrics import MetricsWriter
 from utils import *
 
-def soft_update(target_model, model, tau=0.95):
+def soft_update(target_model, model, tau=0.):
     model_state_dict = model.state_dict()
-    # target_qcritic.load_state_dict(q_state_dict)
     target_state_dict = target_model.state_dict()
     for name, param in target_state_dict.items():
         if not ("weight" in name or "bias" in name):
+            # print(f"Not soft updating param {name}")
             continue
-        param.data = tau*param.data + (1-tau)*model_state_dict[name].data
-        target_state_dict[name].copy_(param)
+        # pdb.set_trace()
+        # param.data = tau*param.data + (1-tau)*model_state_dict[name].data
+        # target_state_dict[name].copy_(param)
+        transformed_param = tau*param + (1-tau)*model_state_dict[name]
+        target_state_dict[name].copy_(transformed_param)
     target_model.load_state_dict(target_state_dict)
 
 
@@ -45,8 +48,7 @@ def run(env_name, config,
         num_episodes=5000,
         policy_update_frequency=100,
         run_id='NA',
-        exp_id='NA',
-        num_actions=1000):
+        exp_id='NA'):
 
     env = gym.make(env_name)
     print("Using seed {}".format(seed))
@@ -54,6 +56,7 @@ def run(env_name, config,
     env.seed(seed)
     torch.manual_seed(seed)
 
+    num_actions = config.n_samples_per_state
     run_name = get_writer_name(policy_type, config, seed, use_target, env_name, num_actions, run_id=run_id, exp_id=exp_id)
     metrics_writer = MetricsWriter(run_name)
 
@@ -83,21 +86,12 @@ def run(env_name, config,
     total_steps = 0
     timesteps = 0
 
-    # ep_states = [observation]
-    # ep_actions = []
-    # ep_rewards = []
-
 
     for episode in range(num_episodes):
 
         observation = env.reset()
         done = False
         ep_length = 0
-
-        # if timesteps == 0:
-        #     policy_states = [observation]
-        #     policy_actions = []
-        #     policy_rewards = []
 
         ep_states = [observation]
         ep_actions = []
@@ -111,12 +105,9 @@ def run(env_name, config,
             ep_actions.append(action)
             ep_rewards.append(reward)
 
-            # policy_states.append(observation)
-            # policy_actions.append(action)
-            # policy_rewards.append(reward)
-
             ep_length += 1
             if(len(ep_actions) >= 2):
+                vcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2])
                 if use_qcritic:
                     if use_policy_target:
                         next_action = target_policy.get_action(observation)
@@ -127,39 +118,15 @@ def run(env_name, config,
                         soft_update(target_qcritic, qcritic, tau=config.tau)
                     if use_policy_target:
                         soft_update(target_policy, policy, tau=config.tau)
-                        
-                vcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2])
 
-            # if use_target:
-            #     q_state_dict = qcritic.state_dict()
-            #     # target_qcritic.load_state_dict(q_state_dict)
-            #     target_state_dict = target_qcritic.state_dict()
-            #     for name, param in target_state_dict.items():
-            #         if not ("weight" in name or "bias" in name):
-            #             continue
-            #         param.data = config.tau*param.data + (1-config.tau)*q_state_dict[name].data
-            #         target_state_dict[name].copy_(param)
-            #     target_qcritic.load_state_dict(target_state_dict)
-            # if timesteps % policy_update_frequency == 0:
-            #     if use_qcritic:
-            #         policy.apply_gradient_episode(policy_states, policy_actions, policy_rewards, timesteps, qcritic, vcritic)
-            #     else:
-            #         policy.apply_gradient_episode(policy_states, policy_actions, policy_rewards, timesteps, vcritic)
-
-            #     policy_states = [observation]
-            #     policy_actions = []
-            #     policy_rewards =[]
-
-            # timesteps += 1
+        vcritic.apply_gradient(ep_states[-2], ep_actions[-1], ep_rewards[-1], None)
+        if use_qcritic:
+            qcritic.apply_gradient(ep_states[-2], ep_actions[-1], ep_rewards[-1], None, None, target_q = target_qcritic)
 
         if use_qcritic:
             policy.apply_gradient_episode(ep_states, ep_actions, ep_rewards, episode, qcritic, vcritic)
         else:
             policy.apply_gradient_episode(ep_states, ep_actions, ep_rewards, episode, vcritic)
-
-        if use_qcritic:
-            qcritic.apply_gradient(ep_states[-2], ep_actions[-1], ep_rewards[-1], None, None, target_q = target_qcritic)
-        vcritic.apply_gradient(ep_states[-2], ep_actions[-1], ep_rewards[-1], None)
 
         total_reward = np.sum(ep_rewards)
         print("Episode: {0} | Average score in batch: {1}".format(episode, total_reward))
@@ -189,20 +156,12 @@ if __name__ == '__main__':
     ## TODO: figure out how to run using GPU
     ## TODO: add other envs / make sure that trapezoidal works on higher dimensions
 
-    ## TODO: add the done
-    ## TODO: figure out the detach issue / target Q
     ## TODO: investigate unlearning
 
     ## TODO: run integrate to investigate unlearning
-
     ## TODO: add gradient comparison script
-
     ## TODO: add env_name, task_id to writer
-
-    ## TODO: finish eval 
-
-
-
+    ## TODO: finish eval
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--policy', required=True, type=str,
@@ -215,7 +174,7 @@ if __name__ == '__main__':
                         choices=['inv-pendulum', 'walker', 'cheetah', 'reacher'])
     parser.add_argument('--run_id', type=str, default='NA')
     parser.add_argument('--exp_id', type=str, default='NA')
-    parser.add_argument('--num_actions', type=int, default=1000)
+    parser.add_argument('--num_actions', type=int, default=100)
     #parser.add_argument('--model_path', required=True, type=str)
 
 
@@ -228,13 +187,14 @@ if __name__ == '__main__':
 
     env_name = get_env_name(args.env)
 
-    config = Config()
-    run(env_name, config, 
-        policy_type=args.policy, 
-        seed=seed, 
-        use_target=args.use_target, 
-        use_policy_target=args.use_policy_target, 
-        use_gpu=args.use_gpu, 
+    config = get_config(args.env)
+    config.n_samples_per_state = args.num_actions
+
+    run(env_name, config,
+        policy_type=args.policy,
+        seed=seed,
+        use_target=args.use_target,
+        use_policy_target=args.use_policy_target,
+        use_gpu=args.use_gpu,
         run_id=args.run_id,
-        exp_id=args.exp_id, 
-        num_actions=args.num_actions)
+        exp_id=args.exp_id)

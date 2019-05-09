@@ -4,17 +4,29 @@ import numpy as np
 from policy import PolicyMC, PolicyReinforce, PolicyIntegrationTrapezoidal
 from qcritic import QCritic
 from vcritic import VCritic
-from config import Config
 import random
 import time
 import os
 import argparse
+import config
 
 # Logging stuff
 from tensorboardX import SummaryWriter
 
 def clip(x, min, max):
     return (x >= max) * max + (x <= min) * min + (x <= max * x >= min) * x
+
+def get_config(env):
+    if env == 'inv-pendulum':
+        return config.InvertedPendulumConfig()
+    elif env == "cheetah":
+        return config.CheetahConfig()
+    elif env == "walker":
+        return config.WalkerConfig()
+    elif env == "reacher":
+        return config.ReacherConfig()
+    else:
+        print("Invalid environment name") #should never get here
 
 def get_policy(policy_type, env, config, writer, num_actions):
     policy = None
