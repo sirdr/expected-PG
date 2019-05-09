@@ -15,14 +15,11 @@ class QCritic(nn.Module):
         self.state_space = env.observation_space.shape[0]
         self.action_space = env.action_space.shape[0]
 
-        # Input is a concatenation of state and action.
-        self.l1 = nn.Linear(self.state_space + self.action_space, 48)
-        # Output a single Q value for that state and action.
-        self.l2 = nn.Linear(48, 1)
-
-        if use_gpu:
-            self.l1 = self.l1.cuda()
-            self.l2 = self.l2.cuda()
+        self.layers = [nn.Linear(self.state_space + self.action_space, config.qcritic_layers[0])]
+        for i in range(1, len(config.qcritic_layers)):
+            self.layers.append(nn.Linear(config.qcritic_layers[i-1], config.qcritic_layers[i]))
+        self.layers.append(nn.Linear(config.qcritic_layers[-1], 1))
+        self.layers = nn.ModuleList(self.layers)
 
         self.gamma = config.gamma
 
@@ -31,11 +28,11 @@ class QCritic(nn.Module):
         self.step = 0
 
     def forward(self, state, action):
-        concat = torch.cat((state, action), -1)
-        out = self.l1(concat)
-        out = F.relu(out)
-        out = self.l2(out)
-        return out
+        out = torch.cat((state, action), -1)
+        for layer in self.layers[:-1]:
+            out = layer(out)
+            out = F.relu(out)
+        return self.layers[-1](out)
 
     def apply_gradient(self, s1, a1, r, s2, a2, target_q=None):
         self.optimizer.zero_grad()

@@ -13,20 +13,21 @@ class VCritic(nn.Module):
         super(VCritic, self).__init__()
         self.state_space = env.observation_space.shape[0]
 
-        # Input is a concatenation of state and action.
-        self.l1 = nn.Linear(self.state_space, 10)
-        # Output a single Q value for that state and action.
-        self.l2 = nn.Linear(10, 1)
+        self.layers = [nn.Linear(self.state_space, config.vcritic_layers[0])]
+        for i in range(1, len(config.vcritic_layers)):
+            self.layers.append(nn.Linear(config.vcritic_layers[i-1], config.vcritic_layers[i]))
+        self.layers.append(nn.Linear(config.vcritic_layers[-1], 1))
+        self.layers = nn.ModuleList(self.layers)
 
         self.gamma = config.gamma
 
         self.optimizer = optim.Adam(self.parameters(), lr=config.critic_lr)
 
-    def forward(self, state):
-        out = self.l1(state)
-        out = F.relu(out)
-        out = self.l2(out)
-        return out
+    def forward(self, out):
+        for layer in self.layers[:-1]:
+            out = layer(out)
+            out = F.relu(out)
+        return self.layers[-1](out)
 
     def apply_gradient(self, s1, a1, r, s2):
         self.optimizer.zero_grad()
