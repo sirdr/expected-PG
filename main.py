@@ -160,9 +160,37 @@ def run(env_name, config,
             if not os.path.exists(outdir):
                 os.makedirs(outdir)
             save_path = os.path.join(outdir, "{}.tar".format(run_name))
-            save_checkpoint(policy, seed, env, config, use_qcritic, use_target, vcritic=vcritic, critic=critic, target_critic=target_critic, episode=episode, reward=total_reward, timesteps=total_steps, save_path=save_path)
+            save_checkpoint(policy, seed, env, config, use_qcritic, use_target, policy_type, env_name, num_actions,
+                            run_id,
+                            exp_id,
+                            vcritic=vcritic, 
+                            critic=critic, 
+                            target_critic=target_critic, 
+                            episode=episode, 
+                            reward=total_reward, 
+                            timesteps=total_steps, 
+                            save_path=save_path)
 
-
+    target_critic = None
+    critic = None
+    if use_qcritic:
+        critic = qcritic
+        if use_target:
+            target_critic = target_qcritic
+    outdir = "checkpoints/"
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+    save_path = os.path.join(outdir, "{}.tar".format(run_name))
+    save_checkpoint(policy, seed, env, config, use_qcritic, use_target, policy_type, env_name, num_actions,
+                    run_id,
+                    exp_id,
+                    vcritic=vcritic, 
+                    critic=critic, 
+                    target_critic=target_critic, 
+                    episode=episode, 
+                    reward=total_reward, 
+                    timesteps=total_steps, 
+                    save_path=save_path)
 
 if __name__ == '__main__':
 
@@ -193,6 +221,7 @@ if __name__ == '__main__':
     parser.add_argument('--run_id', type=str, default='NA')
     parser.add_argument('--exp_id', type=str, default='NA')
     parser.add_argument('--num_actions', type=int, default=100)
+    parser.add_argument('--num_episodes', type=int, default=5000)
     #parser.add_argument('--model_path', required=True, type=str)
 
 
@@ -215,4 +244,5 @@ if __name__ == '__main__':
         use_policy_target=args.use_policy_target,
         use_gpu=args.use_gpu,
         run_id=args.run_id,
-        exp_id=args.exp_id)
+        exp_id=args.exp_id,
+        num_episodes=args.num_episodes)
