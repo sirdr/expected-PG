@@ -13,6 +13,25 @@ from vcritic import VCritic
 from metrics import MetricsWriter
 from utils import *
 
+def run_id_2_seed(run_id):
+    id_2_seed = {1 : 5789 ,
+                2 : 9584,
+                3 : 2494,
+                4 : 4370,
+                5 : 7664,
+                6 : 6659,
+                7 : 2619,
+                8 : 5460,
+                9 : 8694,
+                10 : 150,
+                11 : 1857,
+                12 : 4640,
+                13 : 4956,
+                14 : 2649,
+                15 : 1667}
+    seed = id_2_seed[run_id]
+    return seed
+
 def soft_update(target_model, model, tau=0.):
     model_state_dict = model.state_dict()
     target_state_dict = target_model.state_dict()
@@ -85,10 +104,6 @@ def run(env_name, config,
     total_steps = 0
     timesteps = 0
 
-<<<<<<< HEAD
-=======
-
->>>>>>> d72fa75fad90312135f9bbc01ae8e976fbcfc553
     for episode in range(num_episodes):
 
         observation = env.reset()
@@ -121,13 +136,10 @@ def run(env_name, config,
                     if use_policy_target:
                         soft_update(target_policy, policy, tau=config.tau)
 
-<<<<<<< HEAD
-=======
         vcritic.apply_gradient(ep_states[-2], ep_actions[-1], ep_rewards[-1], None)
         if use_qcritic:
             qcritic.apply_gradient(ep_states[-2], ep_actions[-1], ep_rewards[-1], None, None, target_q = target_qcritic)
 
->>>>>>> d72fa75fad90312135f9bbc01ae8e976fbcfc553
         if use_qcritic:
             policy.apply_gradient_episode(ep_states, ep_actions, ep_rewards, episode, qcritic, vcritic)
         else:
@@ -166,7 +178,7 @@ if __name__ == '__main__':
     ## TODO: run integrate to investigate unlearning
     ## TODO: add gradient comparison script
     ## TODO: add env_name, task_id to writer
-    
+
     ## TODO: finish eval 
 
     parser = argparse.ArgumentParser()
@@ -186,8 +198,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    if args.seed <= 0:
-        seed = random.randint(1,10000)
+    if args.run_id != 'NA':
+        seed = run_id_2_seed(args.run_id)
     else:
         seed = args.seed
 
