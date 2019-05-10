@@ -1,5 +1,6 @@
 import time
 from tensorboardX import SummaryWriter
+import os
 
 class MetricsWriter:
     def __init__(self, run_name, runs_dir='runs/', score_dir='score/'):
