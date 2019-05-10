@@ -9,7 +9,7 @@ class MetricsWriter:
         self.tb_writer = SummaryWriter(score_output_file)
         # add directory creation
         runs_output_file = os.path.join(runs_dir, run_name)
-        self.file_writer = open(output_file, "w+")
+        self.file_writer = open(runs_output_file, "w+")
         self.file_writer.write("episode,timestamp,metric_name,value\n")
 
     def write_metric(self, episode, metric_name, value):
