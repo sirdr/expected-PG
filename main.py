@@ -66,7 +66,19 @@ def run(env_name, config,
         checkpoint_freq=1000,
         num_episodes=5000,
         run_id='NA',
-        exp_id='NA'):
+        exp_id='NA',
+        results_dir=''):
+
+    checkpoint_dir = os.path.join(results_dir, 'checkpoints/')
+    runs_dir = os.path.join(results_dir, 'runs/')
+    score_dir = os.path.join(results_dir, 'score/')
+
+    if not os.path.exists(checkpoint_dir):
+        os.makedirs(checkpoint_dir)
+    if not os.path.exists(runs_dir):
+        os.makedirs(runs_dir)
+    if not os.path.exists(score_dir):
+        os.makedirs(score_dir)
 
     env = gym.make(env_name)
     print("Using seed {}".format(seed))
@@ -76,7 +88,7 @@ def run(env_name, config,
 
     num_actions = config.n_samples_per_state
     run_name = get_writer_name(policy_type, config, seed, use_target, env_name, num_actions, run_id=run_id, exp_id=exp_id)
-    metrics_writer = MetricsWriter(run_name)
+    metrics_writer = MetricsWriter(run_name, runs_dir=runs_dir, score_dir=score_dir)
 
     vcritic = VCritic(env, config)
     policy = get_policy(policy_type, env, config, metrics_writer, num_actions)
@@ -156,10 +168,7 @@ def run(env_name, config,
                 critic = qcritic
                 if use_target:
                     target_critic = target_qcritic
-            outdir = "checkpoints/"
-            if not os.path.exists(outdir):
-                os.makedirs(outdir)
-            save_path = os.path.join(outdir, "{}.tar".format(run_name))
+            save_path = os.path.join(checkpoint_dir, "{}.tar".format(run_name))
             save_checkpoint(policy, seed, env, config, use_qcritic, use_target, policy_type, env_name, num_actions,
                             run_id,
                             exp_id,
@@ -177,10 +186,7 @@ def run(env_name, config,
         critic = qcritic
         if use_target:
             target_critic = target_qcritic
-    outdir = "checkpoints/"
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
-    save_path = os.path.join(outdir, "{}.tar".format(run_name))
+    save_path = os.path.join(checkpoint_dir, "{}.tar".format(run_name))
     save_checkpoint(policy, seed, env, config, use_qcritic, use_target, policy_type, env_name, num_actions,
                     run_id,
                     exp_id,
@@ -222,6 +228,7 @@ if __name__ == '__main__':
     parser.add_argument('--exp_id', type=str, default='NA')
     parser.add_argument('--num_actions', type=int, default=100)
     parser.add_argument('--num_episodes', type=int, default=5000)
+    parser.add_argument('--results_dir', type=str, default='')
     #parser.add_argument('--model_path', required=True, type=str)
 
 
@@ -247,7 +254,8 @@ if __name__ == '__main__':
         use_gpu=args.use_gpu,
         run_id=args.run_id,
         exp_id=args.exp_id,
-        num_episodes=args.num_episodes)
+        num_episodes=args.num_episodes,
+        results_dir=args.results_dir)
 
     end_time = time.time()
 

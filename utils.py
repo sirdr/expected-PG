@@ -99,7 +99,6 @@ def save_checkpoint(policy, seed, env, config, use_qcritic, use_target, policy_t
         save_dict['target_critic_state_dict'] = target_critic.state_dict()
         save_dict['target_critic_optimizer_state_dict'] = target_critic.optimizer.state_dict()
 
-
     torch.save(save_dict, save_path)
     if verbose:
         print("done")

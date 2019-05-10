@@ -2,11 +2,13 @@ import time
 from tensorboardX import SummaryWriter
 
 class MetricsWriter:
-    def __init__(self, run_name):
+    def __init__(self, run_name, runs_dir='runs/', score_dir='score/'):
+        score_output_file = os.path.join(score_dir, run_name)
         # All metrics are written to both TensorBoard and a CSV file
-        self.tb_writer = SummaryWriter(f"score/{run_name}")
+        self.tb_writer = SummaryWriter(score_output_file)
         # add directory creation
-        self.file_writer = open(f"runs/{run_name}", "w+")
+        runs_output_file = os.path.join(runs_dir, run_name)
+        self.file_writer = open(output_file, "w+")
         self.file_writer.write("episode,timestamp,metric_name,value\n")
 
     def write_metric(self, episode, metric_name, value):
