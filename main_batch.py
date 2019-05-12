@@ -36,9 +36,7 @@ def get_env_name(proxy_name):
     if proxy_name == 'cheetah':
         return 'HalfCheetah-v1'
     if proxy_name == 'reacher':
-        return 'Reacher-v1'
-    if proxy_name == 'lander':
-        return 'LunarLanderContinuous-v2'
+        return 'Reacher2d-v1'
 
 def run(env_name, config,
         policy_type='integrate',
@@ -85,56 +83,72 @@ def run(env_name, config,
     policy.train()
     vcritic.train()
 
+    episode = 0
     total_steps = 0
-    timesteps = 0
 
+    for batch in range(200):
 
-    for episode in range(num_episodes):
+        states, actions, rewards = [], [], []
+        total_steps_batch = 0
 
-        observation = env.reset()
-        done = False
-        ep_length = 0
+        while total_steps_batch < 50000:
 
-        ep_states = [observation]
-        ep_actions = []
-        ep_rewards = []
+            observation = env.reset()
+            done = False
+            ep_length = 0
 
-        while not done:
-            # if episode%50 == 0:
-            #     env.render()
-            action = policy.get_action(observation)
-            observation, reward, done, info = env.step(action)
-            ep_states.append(observation)
-            ep_actions.append(action)
-            ep_rewards.append(reward)
+            ep_states = [observation]
+            ep_actions = []
+            ep_rewards = []
 
-            ep_length += 1
-            if(len(ep_actions) >= 2):
-                vcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2])
-                if use_qcritic:
-                    if use_policy_target:
-                        next_action = target_policy.get_action(observation)
-                    else:
-                        next_action = ep_actions[-1]
-                    qcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2], next_action, target_q=target_qcritic)
-                    if use_target:
-                        soft_update(target_qcritic, qcritic, tau=config.tau)
-                    if use_policy_target:
-                        soft_update(target_policy, policy, tau=config.tau)
+            while not done:
+                # env.render()
+                action = policy.get_action(observation)
+                observation, reward, done, info = env.step(action)
+                ep_states.append(observation)
+                ep_actions.append(action)
+                ep_rewards.append(reward)
 
-        vcritic.apply_gradient(ep_states[-2], ep_actions[-1], ep_rewards[-1], None)
+                ep_length += 1
+                total_steps_batch += 1
+                total_steps += 1
+
+                if(len(ep_actions) >= 2):
+                    # vcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2])
+                    if use_qcritic:
+                        if use_policy_target:
+                            next_action = target_policy.get_action(observation)
+                        else:
+                            next_action = ep_actions[-1]
+                        qcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2], next_action, target_q=target_qcritic)
+                        if use_target:
+                            soft_update(target_qcritic, qcritic, tau=config.tau)
+                        if use_policy_target:
+                            soft_update(target_policy, policy, tau=config.tau)
+
+            # vcritic.apply_gradient(ep_states[-2], ep_actions[-1], ep_rewards[-1], None)
+            vcritic.apply_gradient_episode(ep_states, ep_rewards)
+            if use_qcritic:
+                qcritic.apply_gradient(ep_states[-2], ep_actions[-1], ep_rewards[-1], None, None, target_q = target_qcritic)
+
+            states.append(ep_states)
+            actions.append(ep_actions)
+            rewards.append(ep_rewards)
+
+            total_reward = np.sum(ep_rewards)
+            print("Episode: {0} | Average score in batch: {1}".format(episode, total_reward))
+            metrics_writer.write_metric(episode, "total_reward_episode", total_reward)
+            metrics_writer.write_metric(total_steps, "total_reward_steps", total_reward)
+
+            episode += 1
+
         if use_qcritic:
-            qcritic.apply_gradient(ep_states[-2], ep_actions[-1], ep_rewards[-1], None, None, target_q = target_qcritic)
-
-        if use_qcritic:
-            policy.apply_gradient_episode(ep_states, ep_actions, ep_rewards, episode, qcritic, vcritic)
+            policy.apply_gradient_batch(states, actions, rewards, episode, qcritic, vcritic)
         else:
-            policy.apply_gradient_episode(ep_states, ep_actions, ep_rewards, episode, vcritic)
+            policy.apply_gradient_batch(states, actions, rewards, batch, vcritic)
 
-        total_reward = np.sum(ep_rewards)
-        print("Episode: {0} | Average score in batch: {1}".format(episode, total_reward))
-        metrics_writer.write_metric(episode, "total_reward", total_reward)
-        metrics_writer.write_metric(episode, "policy_std", torch.exp(policy.log_std))
+        average_reward = np.mean([sum(ep_r) for ep_r in rewards])
+        metrics_writer.write_metric(batch, "total_reward_batch", average_reward)
 
         if episode % checkpoint_freq == 0:
             target_critic = None
@@ -175,7 +189,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_policy_target', action='store_true')
     parser.add_argument('--use_gpu', action='store_true')
     parser.add_argument('--env', required=True, type=str,
-                        choices=['inv-pendulum', 'walker', 'cheetah', 'reacher', 'lander'])
+                        choices=['inv-pendulum', 'walker', 'cheetah', 'reacher'])
     parser.add_argument('--run_id', type=str, default='NA')
     parser.add_argument('--exp_id', type=str, default='NA')
     parser.add_argument('--num_actions', type=int, default=100)

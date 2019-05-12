@@ -7,45 +7,63 @@ class InvertedPendulumConfig:
     normalize_advantages = True
     learn_std = False
     tau = 0.99
-    vcritic_layers = [10]
+    vcritic_layers = [16]
     qcritic_layers = [48]
     policy_layers = [16]
+    action_std = 0.2
 
 class CheetahConfig:
-    gamma = 1.00
+    gamma = 0.9
     eps = 0.01
     critic_lr = 1e-2
-    policy_lr = 5e-4
+    policy_lr = 1e-4
     n_samples_per_state = 100
     normalize_advantages = True
     learn_std = False
     tau = .99
-    vcritic_layers = [10]
-    qcritic_layers = [48]
-    policy_layers = [16]
+    vcritic_layers = [48]
+    qcritic_layers = [48,32]
+    policy_layers = [32,32,32]
+    action_std = 0.2
 
 class WalkerConfig:
-    gamma = 1.00
+    gamma = 0.9
     eps = 0.01
-    critic_lr = 1e-2
+    critic_lr = 1e-3
     policy_lr = 5e-4
     n_samples_per_state = 100
     normalize_advantages = True
     learn_std = False
     tau = .99
-    vcritic_layers = [10]
+    vcritic_layers = [32]
     qcritic_layers = [48]
-    policy_layers = [16]
+    policy_layers = [16,16]
+    action_std = 0.2
 
 class ReacherConfig:
     gamma = 1.00
     eps = 0.01
-    critic_lr = 1e-2
-    policy_lr = 5e-4
+    critic_lr = 1e-3
+    policy_lr = 1e-4
     n_samples_per_state = 100
     normalize_advantages = True
     learn_std = False
     tau = .99
-    vcritic_layers = [10]
+    vcritic_layers = [32]
     qcritic_layers = [48]
-    policy_layers = [16]
+    policy_layers = [32]
+    action_std = 0.2
+
+class LanderConfig:
+    gamma = 0.99
+    eps = 0.01
+    critic_lr = 1e-2
+    policy_lr = 1e-3
+    n_samples_per_state = 100
+    normalize_advantages = True
+    learn_std = False
+    tau = .99
+    vcritic_layers = [32]
+    qcritic_layers = [48]
+    policy_layers = [32]
+    action_std = 0.2

@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.autograd import backward, Variable
+import pdb
 
 '''
 V-Critic is trained by TD (learning current policy value).
@@ -41,7 +42,23 @@ class VCritic(nn.Module):
         self.optimizer.step()
         return
 
-    def compute_returns(self, rewards_by_path):
+    def apply_gradient_episode(self, ep_states, ep_rewards):
+        self.optimizer.zero_grad()
+        current_V = self.forward(torch.tensor(np.array(ep_states[:-1])).float()).flatten()
+        true_V = torch.tensor(self.compute_returns(ep_rewards)).float()
+        loss = nn.MSELoss()(current_V, true_V.detach())
+        loss.backward()
+        self.optimizer.step()
+        return
+
+    def compute_returns(self, ep_rewards):
+        g = np.array(ep_rewards)
+        n_transitions = len(g)
+        g = (self.gamma ** np.arange(n_transitions)) * g
+        g = np.cumsum(g[::-1])[::-1] / (self.gamma ** np.arange(n_transitions))
+        return g
+
+    def compute_returns_batch(self, rewards_by_path):
         returns = []
         for reward_path in rewards_by_path:
             g = np.array(reward_path)

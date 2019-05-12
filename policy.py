@@ -29,9 +29,9 @@ class Policy(nn.Module):
         self.layers = nn.ModuleList(self.layers)
 
         if config.learn_std:
-            self.log_std = torch.nn.Parameter(torch.tensor([np.log(0.2)], dtype=torch.float32), requires_grad=True)
+            self.log_std = torch.nn.Parameter(torch.tensor([np.log(config.action_std)], dtype=torch.float32), requires_grad=True)
         else:
-            self.log_std = torch.tensor([np.log(0.2)], dtype=torch.float32)
+            self.log_std = torch.tensor([np.log(config.action_std)], dtype=torch.float32)
 
         self.gamma = config.gamma
         self.normalize_advantages = config.normalize_advantages
@@ -68,6 +68,19 @@ class PolicyReinforce(Policy):
             advantages -= vcritic(torch.from_numpy(np.vstack(states)).float()).detach().numpy().flatten()
         return advantages
 
+    def compute_advantages_batch(self, states, rewards, vcritic=None):
+        advantages = []
+        for k in range(len(states)):
+            ep_states, ep_rewards = states[k][:-1], rewards[k]
+            g = np.array(ep_rewards)
+            n_transitions = len(g)
+            g = (self.gamma ** np.arange(n_transitions)) * g
+            ep_advantages = np.cumsum(g[::-1])[::-1] / (self.gamma ** np.arange(n_transitions))
+            if vcritic is not None:
+                ep_advantages -= vcritic(torch.from_numpy(np.vstack(ep_states)).float()).detach().numpy().flatten()
+            advantages.append(ep_advantages)
+        return np.concatenate(advantages)
+
     def apply_gradient_episode(self, ep_states, ep_actions, ep_rewards, episode, vcritic):
 
         self.optimizer.zero_grad()
@@ -91,9 +104,34 @@ class PolicyReinforce(Policy):
         for name, param in self.named_parameters():
             self.metrics_writer.write_metric(episode, f"grad_norm_{name}", torch.norm(param.grad))
 
+        torch.nn.utils.clip_grad_value_(self.parameters(), 1)
+
         self.optimizer.step()
 
-        return
+    def apply_gradient_batch(self, states, actions, rewards, batch, vcritic):
+
+        self.optimizer.zero_grad()
+        n_states = sum([len(ep_states[:-1]) for ep_states in states])
+        advantages = torch.tensor(self.compute_advantages_batch(states, rewards, vcritic=vcritic)).float()
+        states = torch.tensor(np.array([state for ep_states in states for state in ep_states[:-1]])).float()
+        actions = torch.tensor(np.array([action for ep_actions in actions for action in ep_actions])).float()
+
+        self.metrics_writer.write_metric(batch, "average_advantage", torch.mean(advantages))
+        self.metrics_writer.write_metric(batch, "std_advantage", torch.std(advantages))
+
+        if(self.normalize_advantages):
+            advantages = (advantages - torch.mean(advantages)) / (0.1 + torch.std(advantages))
+
+        std = torch.exp(self.log_std)
+        log_probs = torch.sum(torch.distributions.normal.Normal(self.forward(states), std).log_prob(actions), dim=1)
+
+        loss = - torch.dot(log_probs, advantages.detach()) / n_states
+        loss.backward()
+
+        for name, param in self.named_parameters():
+            self.metrics_writer.write_metric(batch, f"grad_norm_{name}", torch.norm(param.grad))
+
+        self.optimizer.step()
 
 '''
     Policy is trained using any policy gradient method.
@@ -134,6 +172,41 @@ class PolicyMC(Policy):
 
         for name, param in self.named_parameters():
             self.metrics_writer.write_metric(episode, f"grad_norm_{name}", torch.norm(param.grad))
+
+        torch.nn.utils.clip_grad_value_(self.parameters(), 1)
+
+        self.optimizer.step()
+
+    def apply_gradient_batch(self, states, actions, rewards, batch, qcritic, vcritic):
+
+        self.optimizer.zero_grad()
+
+        n_states = sum([len(ep_states[:-1]) for ep_states in states])
+        states = torch.tensor(np.array([state for ep_states in states for state in ep_states[:-1]])).float()
+        action_means = self.forward(states).repeat(self.n_samples_per_state, 1)
+
+        std = torch.exp(self.log_std)
+        dist = torch.distributions.normal.Normal(action_means, std)
+        sample = dist.sample()
+        actions = torch.max(torch.min(sample, self.action_space_high), self.action_space_low)
+
+        advantages = qcritic(states.repeat(self.n_samples_per_state, 1), actions).flatten().detach()
+        if vcritic is not None:
+            advantages -= vcritic(states.repeat(self.n_samples_per_state,1)).flatten().detach()
+
+        self.metrics_writer.write_metric(batch, "average_advantage", torch.mean(advantages))
+        self.metrics_writer.write_metric(batch, "std_advantage", torch.std(advantages))
+
+        if(self.normalize_advantages):
+            advantages = (advantages - torch.mean(advantages)) / (0.1 + torch.std(advantages))
+
+        log_probs = torch.sum(torch.distributions.normal.Normal(action_means, std).log_prob(actions), dim=1)
+
+        loss = - torch.dot(log_probs, advantages.detach()) / self.n_samples_per_state / n_states
+        loss.backward()
+
+        for name, param in self.named_parameters():
+            self.metrics_writer.write_metric(batch, f"grad_norm_{name}", torch.norm(param.grad))
 
         self.optimizer.step()
 

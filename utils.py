@@ -25,6 +25,8 @@ def get_config(env):
         return config.WalkerConfig()
     elif env == "reacher":
         return config.ReacherConfig()
+    elif env == "lander":
+        return config.LanderConfig()
     else:
         print("Invalid environment name") #should never get here
 
