@@ -56,6 +56,26 @@ class QCritic(nn.Module):
         self.step += 1
         return
 
+    def apply_gradient_expected(self, s1, a1, r, s2, policy, last_state=False, target_q=None):
+        self.optimizer.zero_grad()
+        current_Q = self.forward(torch.from_numpy(s1).float(), torch.from_numpy(a1).float())
+        if not last_state:
+            a2 = policy.get_actions(s2, 10)
+            if target_q is None:
+                y = r + self.gamma * torch.mean(self.forward(torch.from_numpy(s2).float().repeat(10,1), a2))
+            else:
+                y = r + self.gamma * torch.mean(target_q.forward(torch.from_numpy(s2).float().repeat(10,1), a2))
+        else:
+            y = torch.tensor(r).float()
+        loss = nn.MSELoss()(current_Q, y.detach())
+        loss.backward()
+        self.optimizer.step()
+
+        for name, param in self.named_parameters():
+            self.metrics_writer.write_metric(self.step, f"qcritic_grad_norm_{name}", torch.norm(param.grad))
+        self.step += 1
+        return
+
     def apply_gradient_episode(self, ep_states, ep_actions, ep_rewards):
         self.optimizer.zero_grad()
         states = torch.tensor(np.array(ep_states[:-2])).float()

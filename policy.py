@@ -43,7 +43,14 @@ class Policy(nn.Module):
         for layer in self.layers[:-1]:
             out = layer(out)
             out = F.relu(out)
-        return self.layers[-1](out)
+        out = self.layers[-1](out)
+        out = torch.max(torch.min(out, self.action_space_high), self.action_space_low)
+        # for layer in self.layers[:-1]:
+        #     out = layer(out)
+        #     out = F.relu(out)
+        # out = self.layers[-1](out)
+        # out = (F.tanh(out) + 1) * .5 * (self.action_space_high - self.action_space_low) + self.action_space_low
+        return out
 
     def get_action(self, state):
         state = torch.from_numpy(state).type(torch.FloatTensor)
@@ -52,6 +59,14 @@ class Policy(nn.Module):
         dist = torch.distributions.normal.Normal(action_mean, std)
         sample = dist.sample().numpy()
         return np.clip(sample, self.action_space_low.numpy(), self.action_space_high.numpy())
+
+    def get_actions(self, state, n):
+        state = torch.from_numpy(state).type(torch.FloatTensor)
+        action_means = self.forward(state).repeat(n, 1)
+        std = torch.exp(self.log_std)
+        dist = torch.distributions.normal.Normal(action_means, std)
+        sample = dist.sample()
+        return torch.max(torch.min(sample, self.action_space_high), self.action_space_low)
 
 
 class PolicyReinforce(Policy):
@@ -96,15 +111,15 @@ class PolicyReinforce(Policy):
             advantages = (advantages - torch.mean(advantages)) / (0.1 + torch.std(advantages))
 
         std = torch.exp(self.log_std)
-        log_probs = torch.sum(torch.distributions.normal.Normal(self.forward(states), std).log_prob(actions), dim=1)
+
+        action_means = self.forward(states)
+        log_probs = torch.sum(torch.distributions.normal.Normal(action_means, std).log_prob(actions), dim=1)
 
         loss = - torch.dot(log_probs, advantages.detach()) / n_states
         loss.backward()
 
         for name, param in self.named_parameters():
             self.metrics_writer.write_metric(episode, f"grad_norm_{name}", torch.norm(param.grad))
-
-        torch.nn.utils.clip_grad_value_(self.parameters(), 1)
 
         self.optimizer.step()
 
@@ -149,6 +164,7 @@ class PolicyMC(Policy):
         n_states = len(ep_states)
         states = torch.tensor(np.array([state for state in ep_states[:-1]])).float()
         action_means = self.forward(states).repeat(self.n_samples_per_state, 1)
+        action_means = torch.max(torch.min(action_means, self.action_space_high), self.action_space_low)
 
         std = torch.exp(self.log_std)
         dist = torch.distributions.normal.Normal(action_means, std)
@@ -156,8 +172,11 @@ class PolicyMC(Policy):
         actions = torch.max(torch.min(sample, self.action_space_high), self.action_space_low)
 
         advantages = qcritic(states.repeat(self.n_samples_per_state, 1), actions).flatten().detach()
+        self.metrics_writer.write_metric(episode, "average_q", torch.mean(advantages))
         if vcritic is not None:
-            advantages -= vcritic(states.repeat(self.n_samples_per_state,1)).flatten().detach()
+            v_values = vcritic(states.repeat(self.n_samples_per_state,1)).flatten().detach()
+            self.metrics_writer.write_metric(episode, "average_v", torch.mean(v_values))
+            advantages -= v_values
 
         self.metrics_writer.write_metric(episode, "average_advantage", torch.mean(advantages))
         self.metrics_writer.write_metric(episode, "std_advantage", torch.std(advantages))
@@ -165,15 +184,22 @@ class PolicyMC(Policy):
         if(self.normalize_advantages):
             advantages = (advantages - torch.mean(advantages)) / (0.1 + torch.std(advantages))
 
+        self.metrics_writer.write_metric(episode, "advantage_range", torch.max(advantages) - torch.min(advantages))
+
         log_probs = torch.sum(torch.distributions.normal.Normal(action_means, std).log_prob(actions), dim=1)
 
-        loss = - torch.dot(log_probs, advantages.detach()) / self.n_samples_per_state / n_states
+        self.metrics_writer.write_metric(episode, "avg_log_prob", torch.mean(log_probs))
+        self.metrics_writer.write_metric(episode, "max_log_prob", torch.max(log_probs))
+        self.metrics_writer.write_metric(episode, "min_log_prob", torch.min(log_probs))
+        self.metrics_writer.write_metric(episode, "avg_action_mean", torch.mean(action_means))
+        self.metrics_writer.write_metric(episode, "min_action_mean", torch.min(action_means))
+        self.metrics_writer.write_metric(episode, "max_action_mean", torch.max(action_means))
+
+        loss = - torch.dot(log_probs, advantages.detach()) / (self.n_samples_per_state * n_states)
         loss.backward()
 
         for name, param in self.named_parameters():
             self.metrics_writer.write_metric(episode, f"grad_norm_{name}", torch.norm(param.grad))
-
-        torch.nn.utils.clip_grad_value_(self.parameters(), 1)
 
         self.optimizer.step()
 

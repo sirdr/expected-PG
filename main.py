@@ -110,31 +110,37 @@ def run(env_name, config,
 
             ep_length += 1
             if(len(ep_actions) >= 2):
-                vcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2])
+                # vcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2])
                 if use_qcritic:
                     if use_policy_target:
                         next_action = target_policy.get_action(observation)
                     else:
                         next_action = ep_actions[-1]
-                    qcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2], next_action, target_q=target_qcritic)
+                    # qcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2], next_action, target_q=target_qcritic)
+                    qcritic.apply_gradient_expected(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2], policy, last_state = False, target_q=target_qcritic)
                     if use_target:
                         soft_update(target_qcritic, qcritic, tau=config.tau)
                     if use_policy_target:
                         soft_update(target_policy, policy, tau=config.tau)
 
-        vcritic.apply_gradient(ep_states[-2], ep_actions[-1], ep_rewards[-1], None)
+        vcritic.apply_gradient_episode(ep_states, ep_rewards)
+        # vcritic.apply_gradient(ep_states[-2], ep_actions[-1], ep_rewards[-1], None)
         if use_qcritic:
-            qcritic.apply_gradient(ep_states[-2], ep_actions[-1], ep_rewards[-1], None, None, target_q = target_qcritic)
+            # qcritic.apply_gradient(ep_states[-2], ep_actions[-1], ep_rewards[-1], None, None, target_q = target_qcritic)
+            qcritic.apply_gradient_expected(ep_states[-2], ep_actions[-1], ep_rewards[-1], ep_states[-1], policy, last_state = True, target_q=target_qcritic)
+            # qcritic.apply_gradient_episode(ep_states, ep_actions, ep_rewards)
 
         if use_qcritic:
             policy.apply_gradient_episode(ep_states, ep_actions, ep_rewards, episode, qcritic, vcritic)
+            # policy.apply_gradient_episode(ep_states, ep_actions, ep_rewards, episode, qcritic, None)
         else:
             policy.apply_gradient_episode(ep_states, ep_actions, ep_rewards, episode, vcritic)
+            # policy.apply_gradient_episode(ep_states, ep_actions, ep_rewards, episode, None)
 
         total_reward = np.sum(ep_rewards)
         print("Episode: {0} | Average score in batch: {1}".format(episode, total_reward))
         metrics_writer.write_metric(episode, "total_reward", total_reward)
-        metrics_writer.write_metric(episode, "policy_std", torch.exp(policy.log_std))
+        metrics_writer.write_metric(episode, "policy_std", torch.exp(policy.log_std)[0])
 
         if episode % checkpoint_freq == 0:
             target_critic = None
