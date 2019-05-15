@@ -121,6 +121,8 @@ class PolicyReinforce(Policy):
         for name, param in self.named_parameters():
             self.metrics_writer.write_metric(episode, f"grad_norm_{name}", torch.norm(param.grad))
 
+        # torch.nn.utils.clip_grad_norm(self.parameters(), 4)
+
         self.optimizer.step()
 
     def apply_gradient_batch(self, states, actions, rewards, batch, vcritic):
@@ -200,6 +202,8 @@ class PolicyMC(Policy):
 
         for name, param in self.named_parameters():
             self.metrics_writer.write_metric(episode, f"grad_norm_{name}", torch.norm(param.grad))
+
+        # torch.nn.utils.clip_grad_norm(self.parameters(), 2)
 
         self.optimizer.step()
 
