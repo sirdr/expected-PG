@@ -4,6 +4,8 @@ import numpy as np
 from policy import PolicyMC, PolicyReinforce, PolicyIntegrationTrapezoidal
 from qcritic import QCritic
 from vcritic import VCritic
+from metrics import MetricsWriter
+from utils import *
 import random
 import time
 import os
@@ -43,7 +45,7 @@ def get_policy(policy_type, env, config, writer, num_actions):
         print("invalid policy type") #should never get here
     return policy
 
-def get_writer_name(policy_type, config, seed, use_target, env_name, num_actions, run_id='NA', exp_id='NA'):
+def get_writer_name(policy_type, config, seed, use_target, env_name, num_actions, run_id='NA', exp_id='NA', evaluation=False):
     name = "{}-{}-{}-{}-{}-exp_id={}-run_id={}-learnStd={}-seed={}-use_target={}-{}".format(policy_type, env_name, config.critic_lr, config.policy_lr, config.normalize_advantages, exp_id, run_id, config.learn_std, seed, use_target, int(time.time()))
     if policy_type == 'mc':
         name = name+'-num_samples={}'.format(num_actions)
@@ -53,9 +55,20 @@ def get_writer_name(policy_type, config, seed, use_target, env_name, num_actions
         name = name+'-num_actions={}'.format(num_actions)
     else:
         print("invalid policy type") #should never get here
+    if evaluation:
+        name = name+'-eval'
     return name
 
-def save_checkpoint(policy, seed, env, config, use_qcritic, use_target, vcritic=None, critic=None, target_critic=None, reward=None, episode=None, timesteps=None, save_path='model.tar', verbose=True):
+def save_checkpoint(policy, seed, env, config, use_qcritic, use_target, policy_type, env_name, num_actions,
+                    run_id,
+                    exp_id,
+                    vcritic=None, 
+                    critic=None, 
+                    target_critic=None, 
+                    reward=None, episode=None, 
+                    timesteps=None, 
+                    save_path='model.tar', 
+                    verbose=True):
     if verbose:
         print("Saving Training Checkpoint to {} ...".format(save_path))
     save_dict = {
@@ -63,9 +76,14 @@ def save_checkpoint(policy, seed, env, config, use_qcritic, use_target, vcritic=
                 'policy_optimizer_state_dict': policy.optimizer.state_dict(),
                 'seed': seed,
                 'env': env,
+                'env_name': env_name,
+                'policy_type': policy_type,
                 'config': config,
                 'use_qcritic': use_qcritic,
-                'use_target': use_target
+                'use_target': use_target,
+                'run_id': run_id,
+                'exp_id': exp_id,
+                'num_actions': num_actions
                 }
     if vcritic is not None:
         save_dict['vcritic_state_dict'] = vcritic.state_dict()
@@ -82,7 +100,6 @@ def save_checkpoint(policy, seed, env, config, use_qcritic, use_target, vcritic=
     if target_critic is not None:
         save_dict['target_critic_state_dict'] = target_critic.state_dict()
         save_dict['target_critic_optimizer_state_dict'] = target_critic.optimizer.state_dict()
-
 
     torch.save(save_dict, save_path)
     if verbose:

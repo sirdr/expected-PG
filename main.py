@@ -13,6 +13,25 @@ from vcritic import VCritic
 from metrics import MetricsWriter
 from utils import *
 
+def run_id_2_seed(run_id):
+    id_2_seed = {'1' : 5789 ,
+                '2' : 9584,
+                '3' : 2494,
+                '4' : 4370,
+                '5' : 7664,
+                '6' : 6659,
+                '7' : 2619,
+                '8' : 5460,
+                '9' : 8694,
+                '10' : 150,
+                '11' : 1857,
+                '12' : 4640,
+                '13' : 4956,
+                '14' : 2649,
+                '15' : 1667}
+    seed = id_2_seed[run_id]
+    return seed
+
 def soft_update(target_model, model, tau=0.):
     model_state_dict = model.state_dict()
     target_state_dict = target_model.state_dict()
@@ -48,9 +67,20 @@ def run(env_name, config,
         use_gpu=False,
         checkpoint_freq=1000,
         num_episodes=5000,
-        policy_update_frequency=100,
         run_id='NA',
-        exp_id='NA'):
+        exp_id='NA',
+        results_dir=''):
+
+    checkpoint_dir = os.path.join(results_dir, 'checkpoints/')
+    runs_dir = os.path.join(results_dir, 'runs/')
+    score_dir = os.path.join(results_dir, 'score/')
+
+    if not os.path.exists(checkpoint_dir):
+        os.makedirs(checkpoint_dir)
+    if not os.path.exists(runs_dir):
+        os.makedirs(runs_dir)
+    if not os.path.exists(score_dir):
+        os.makedirs(score_dir)
 
     env = gym.make(env_name)
     print("Using seed {}".format(seed))
@@ -60,7 +90,7 @@ def run(env_name, config,
 
     num_actions = config.n_samples_per_state
     run_name = get_writer_name(policy_type, config, seed, use_target, env_name, num_actions, run_id=run_id, exp_id=exp_id)
-    metrics_writer = MetricsWriter(run_name)
+    metrics_writer = MetricsWriter(run_name, runs_dir=runs_dir, score_dir=score_dir)
 
     vcritic = VCritic(env, config)
     policy = get_policy(policy_type, env, config, metrics_writer, num_actions)
@@ -87,7 +117,6 @@ def run(env_name, config,
 
     total_steps = 0
     timesteps = 0
-
 
     for episode in range(num_episodes):
 
@@ -149,17 +178,39 @@ def run(env_name, config,
                 critic = qcritic
                 if use_target:
                     target_critic = target_qcritic
-            outdir = "checkpoints/"
-            if not os.path.exists(outdir):
-                os.makedirs(outdir)
-            save_path = os.path.join(outdir, "{}.tar".format(run_name))
-            save_checkpoint(policy, seed, env, config, use_qcritic, use_target, vcritic=vcritic, critic=critic, target_critic=target_critic, episode=episode, reward=total_reward, timesteps=total_steps, save_path=save_path)
+            save_path = os.path.join(checkpoint_dir, "{}.tar".format(run_name))
+            save_checkpoint(policy, seed, env, config, use_qcritic, use_target, policy_type, env_name, num_actions,
+                            run_id,
+                            exp_id,
+                            vcritic=vcritic, 
+                            critic=critic, 
+                            target_critic=target_critic, 
+                            episode=episode, 
+                            reward=total_reward, 
+                            timesteps=total_steps, 
+                            save_path=save_path)
 
-
+    target_critic = None
+    critic = None
+    if use_qcritic:
+        critic = qcritic
+        if use_target:
+            target_critic = target_qcritic
+    save_path = os.path.join(checkpoint_dir, "{}.tar".format(run_name))
+    save_checkpoint(policy, seed, env, config, use_qcritic, use_target, policy_type, env_name, num_actions,
+                    run_id,
+                    exp_id,
+                    vcritic=vcritic, 
+                    critic=critic, 
+                    target_critic=target_critic, 
+                    episode=episode, 
+                    reward=total_reward, 
+                    timesteps=total_steps, 
+                    save_path=save_path)
 
 if __name__ == '__main__':
 
-    # TODO: 4000 episodes each, 25 iterations
+    # TODO: 7000 episodes each, ~10 iterations
     # TODO: Vary sample size for MC and Fixed Grid (1, 5, 10, 20, 100, 1000)
     # TODO: Simpsons 2000, 10 iterations (1, 5, 10, 20, 100, 1000)
 
@@ -171,7 +222,8 @@ if __name__ == '__main__':
     ## TODO: run integrate to investigate unlearning
     ## TODO: add gradient comparison script
     ## TODO: add env_name, task_id to writer
-    ## TODO: finish eval
+
+    ## TODO: finish eval 
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--policy', required=True, type=str,
@@ -185,13 +237,15 @@ if __name__ == '__main__':
     parser.add_argument('--run_id', type=str, default='NA')
     parser.add_argument('--exp_id', type=str, default='NA')
     parser.add_argument('--num_actions', type=int, default=100)
+    parser.add_argument('--num_episodes', type=int, default=5000)
+    parser.add_argument('--results_dir', type=str, default='')
     #parser.add_argument('--model_path', required=True, type=str)
 
 
     args = parser.parse_args()
 
-    if args.seed <= 0:
-        seed = random.randint(1,10000)
+    if args.run_id != 'NA':
+        seed = run_id_2_seed(args.run_id)
     else:
         seed = args.seed
 
@@ -200,6 +254,8 @@ if __name__ == '__main__':
     config = get_config(args.env)
     config.n_samples_per_state = args.num_actions
 
+    start_time = time.time()
+
     run(env_name, config,
         policy_type=args.policy,
         seed=seed,
@@ -207,4 +263,10 @@ if __name__ == '__main__':
         use_policy_target=args.use_policy_target,
         use_gpu=args.use_gpu,
         run_id=args.run_id,
-        exp_id=args.exp_id)
+        exp_id=args.exp_id,
+        num_episodes=args.num_episodes,
+        results_dir=args.results_dir)
+
+    end_time = time.time()
+
+    print("start time: {} | end time: {} | duration: {}".format(start_time, end_time, end_time-start_time))
