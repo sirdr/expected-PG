@@ -45,8 +45,9 @@ def get_policy(policy_type, env, config, writer, num_actions):
         print("invalid policy type") #should never get here
     return policy
 
-def get_writer_name(policy_type, config, seed, use_target, env_name, num_actions, run_id='NA', exp_id='NA', evaluation=False):
-    name = "{}-{}-{}-{}-{}-exp_id={}-run_id={}-learnStd={}-seed={}-use_target={}-{}".format(policy_type, env_name, config.critic_lr, config.policy_lr, config.normalize_advantages, exp_id, run_id, config.learn_std, seed, use_target, int(time.time()))
+def get_writer_name(policy_type, config, seed, use_target, env_name, num_actions, run_id='NA', exp_id='NA', evaluation=False, expected_sarsa=False):
+    name = "{}-{}-{}-{}-exp_id={}-run_id={}-seed={}".format(policy_type, env_name, config.critic_lr, config.policy_lr, exp_id, run_id, seed)
+    
     if policy_type == 'mc':
         name = name+'-num_samples={}'.format(num_actions)
     elif policy_type == 'reinforce':
@@ -55,6 +56,25 @@ def get_writer_name(policy_type, config, seed, use_target, env_name, num_actions
         name = name+'-num_actions={}'.format(num_actions)
     else:
         print("invalid policy type") #should never get here
+
+    if config.clip_grad > 0:
+        name = name + "-clip_grad={}".format(config.clip_grad)
+
+    if config.clip_actions:
+        name = name + "-clip_actions"
+    else:
+        name = name + "-tanh_actions"
+    if expected_sarsa:
+        name = name + "-expected_sarsa"
+    if config.learn_std:
+        name = name + "-learn_std"
+    if use_target:
+        name = name + "-use_target"
+    if config.normalize_advantages:
+        name = name + "-norm_adv"
+
+    name = name + "-{}".format(int(time.time()))
+
     if evaluation:
         name = name+'-eval'
     return name
@@ -68,7 +88,8 @@ def save_checkpoint(policy, seed, env, config, use_qcritic, use_target, policy_t
                     reward=None, episode=None, 
                     timesteps=None, 
                     save_path='model.tar', 
-                    verbose=True):
+                    verbose=True,
+                    expected_sarsa=False):
     if verbose:
         print("Saving Training Checkpoint to {} ...".format(save_path))
     save_dict = {
@@ -83,7 +104,8 @@ def save_checkpoint(policy, seed, env, config, use_qcritic, use_target, policy_t
                 'use_target': use_target,
                 'run_id': run_id,
                 'exp_id': exp_id,
-                'num_actions': num_actions
+                'num_actions': num_actions,
+                'expected_sarsa': expected_sarsa
                 }
     if vcritic is not None:
         save_dict['vcritic_state_dict'] = vcritic.state_dict()

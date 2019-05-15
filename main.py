@@ -69,7 +69,8 @@ def run(env_name, config,
         num_episodes=5000,
         run_id='NA',
         exp_id='NA',
-        results_dir=''):
+        results_dir='',
+        expected_sarsa=False):
 
     checkpoint_dir = os.path.join(results_dir, 'checkpoints/')
     runs_dir = os.path.join(results_dir, 'runs/')
@@ -89,7 +90,7 @@ def run(env_name, config,
     torch.manual_seed(seed)
 
     num_actions = config.n_samples_per_state
-    run_name = get_writer_name(policy_type, config, seed, use_target, env_name, num_actions, run_id=run_id, exp_id=exp_id)
+    run_name = get_writer_name(policy_type, config, seed, use_target, env_name, num_actions, run_id=run_id, exp_id=exp_id, expected_sarsa=expected_sarsa)
     metrics_writer = MetricsWriter(run_name, runs_dir=runs_dir, score_dir=score_dir)
 
     vcritic = VCritic(env, config)
@@ -146,7 +147,11 @@ def run(env_name, config,
                     else:
                         next_action = ep_actions[-1]
                     # qcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2], next_action, target_q=target_qcritic)
-                    qcritic.apply_gradient_expected(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2], policy, last_state = False, target_q=target_qcritic)
+                    if expected_sarsa:
+                        qcritic.apply_gradient_expected(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2], policy, last_state = False, target_q=target_qcritic)
+                    else:
+                        qcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2], next_action, target_q=target_qcritic)
+
                     if use_target:
                         soft_update(target_qcritic, qcritic, tau=config.tau)
                     if use_policy_target:
@@ -156,7 +161,10 @@ def run(env_name, config,
         # vcritic.apply_gradient(ep_states[-2], ep_actions[-1], ep_rewards[-1], None)
         if use_qcritic:
             # qcritic.apply_gradient(ep_states[-2], ep_actions[-1], ep_rewards[-1], None, None, target_q = target_qcritic)
-            qcritic.apply_gradient_expected(ep_states[-2], ep_actions[-1], ep_rewards[-1], ep_states[-1], policy, last_state = True, target_q=target_qcritic)
+            if expected_sarsa:
+                qcritic.apply_gradient_expected(ep_states[-2], ep_actions[-1], ep_rewards[-1], ep_states[-1], policy, last_state = True, target_q=target_qcritic)
+            else:
+                qcritic.apply_gradient(ep_states[-2], ep_actions[-1], ep_rewards[-1], None, None, target_q=target_qcritic)
             # qcritic.apply_gradient_episode(ep_states, ep_actions, ep_rewards)
 
         if use_qcritic:
@@ -188,7 +196,8 @@ def run(env_name, config,
                             episode=episode, 
                             reward=total_reward, 
                             timesteps=total_steps, 
-                            save_path=save_path)
+                            save_path=save_path,
+                            expected_sarsa=expected_sarsa)
 
     target_critic = None
     critic = None
@@ -206,7 +215,8 @@ def run(env_name, config,
                     episode=episode, 
                     reward=total_reward, 
                     timesteps=total_steps, 
-                    save_path=save_path)
+                    save_path=save_path,
+                    expected_sarsa=expected_sarsa)
 
 if __name__ == '__main__':
 
@@ -232,6 +242,9 @@ if __name__ == '__main__':
     parser.add_argument('--use_target', action='store_true')
     parser.add_argument('--use_policy_target', action='store_true')
     parser.add_argument('--use_gpu', action='store_true')
+    parser.add_argument('--expected_sarsa', action='store_true')
+    parser.add_argument('--clip_grad', type=int, default=0)
+    parser.add_argument('--clip_actions', action='store_true')
     parser.add_argument('--env', required=True, type=str,
                         choices=['inv-pendulum', 'walker', 'cheetah', 'reacher', 'lander'])
     parser.add_argument('--run_id', type=str, default='NA')
@@ -253,6 +266,8 @@ if __name__ == '__main__':
 
     config = get_config(args.env)
     config.n_samples_per_state = args.num_actions
+    config.clip_actions = args.clip_actions
+    config.clip_grad = args.clip_grad
 
     start_time = time.time()
 
@@ -265,7 +280,8 @@ if __name__ == '__main__':
         run_id=args.run_id,
         exp_id=args.exp_id,
         num_episodes=args.num_episodes,
-        results_dir=args.results_dir)
+        results_dir=args.results_dir,
+        expected_sarsa=args.expected_sarsa)
 
     end_time = time.time()
 

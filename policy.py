@@ -16,6 +16,8 @@ import random
 class Policy(nn.Module):
     def __init__(self, env, config, metrics_writer):
         super(Policy, self).__init__()
+        self.clip_grad = config.clip_grad
+        self.clip_actions = config.clip_actions
         self.env = env
         self.state_space = env.observation_space.shape[0]
         self.action_space = env.action_space.shape[0]
@@ -44,7 +46,11 @@ class Policy(nn.Module):
             out = layer(out)
             out = F.relu(out)
         out = self.layers[-1](out)
-        out = torch.max(torch.min(out, self.action_space_high), self.action_space_low)
+        if self.clip_actions:
+            out = torch.max(torch.min(out, self.action_space_high), self.action_space_low)
+        else:
+            out = (F.tanh(out) + 1) * .5 * (self.action_space_high - self.action_space_low) + self.action_space_low
+
         # for layer in self.layers[:-1]:
         #     out = layer(out)
         #     out = F.relu(out)
@@ -121,7 +127,8 @@ class PolicyReinforce(Policy):
         for name, param in self.named_parameters():
             self.metrics_writer.write_metric(episode, f"grad_norm_{name}", torch.norm(param.grad))
 
-        # torch.nn.utils.clip_grad_norm(self.parameters(), 4)
+        if self.clip_grad > 0:
+            torch.nn.utils.clip_grad_norm(self.parameters(), self.clip_grad)
 
         self.optimizer.step()
 
@@ -204,6 +211,8 @@ class PolicyMC(Policy):
             self.metrics_writer.write_metric(episode, f"grad_norm_{name}", torch.norm(param.grad))
 
         # torch.nn.utils.clip_grad_norm(self.parameters(), 2)
+        if self.clip_grad > 0:
+            torch.nn.utils.clip_grad_norm(self.parameters(), self.clip_grad)
 
         self.optimizer.step()
 
@@ -338,5 +347,8 @@ class PolicyIntegrationTrapezoidal(Policy):
 
         for name, param in self.named_parameters():
             self.metrics_writer.write_metric(episode, f"grad_norm_{name}", torch.norm(param.grad))
+
+        if self.clip_grad > 0:
+            torch.nn.utils.clip_grad_norm(self.parameters(), self.clip_grad)
 
         self.optimizer.step()

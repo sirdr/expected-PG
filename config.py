@@ -11,6 +11,8 @@ class InvertedPendulumConfig:
     qcritic_layers = [48]
     policy_layers = [16]
     action_std = 0.2
+    clip_actions=True
+    clip_grad = 1
 
 class CheetahConfig:
     gamma = 0.9
@@ -25,6 +27,8 @@ class CheetahConfig:
     qcritic_layers = [48,32]
     policy_layers = [32,32,32]
     action_std = 0.2
+    clip_actions=True
+    clip_grad = 1
 
 class WalkerConfig:
     gamma = 0.9
@@ -39,6 +43,8 @@ class WalkerConfig:
     qcritic_layers = [48]
     policy_layers = [16,16]
     action_std = 0.2
+    clip_actions=True
+    clip_grad = 1
 
 class ReacherConfig:
     gamma = 1.00
@@ -53,6 +59,8 @@ class ReacherConfig:
     qcritic_layers = [48]
     policy_layers = [32]
     action_std = 0.2
+    clip_actions=True
+    clip_grad = 1
 
 class LanderConfig:
     gamma = 0.99
@@ -67,3 +75,5 @@ class LanderConfig:
     qcritic_layers = [48]
     policy_layers = [32]
     action_std = 0.2
+    clip_actions=True
+    clip_grad = 1
