@@ -51,8 +51,6 @@ class QCritic(nn.Module):
         loss.backward()
         self.optimizer.step()
 
-        for name, param in self.named_parameters():
-            self.metrics_writer.write_metric(self.step, f"qcritic_grad_norm_{name}", torch.norm(param.grad))
         self.step += 1
         return
 
@@ -71,8 +69,6 @@ class QCritic(nn.Module):
         loss.backward()
         self.optimizer.step()
 
-        for name, param in self.named_parameters():
-            self.metrics_writer.write_metric(self.step, f"qcritic_grad_norm_{name}", torch.norm(param.grad))
         self.step += 1
         return
 
