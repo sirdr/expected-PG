@@ -3,6 +3,7 @@ class InvertedPendulumConfig:
     eps = 0.01
     critic_lr = 1e-2
     policy_lr = 1e-3
+    lr_decay = 0.99
     n_samples_per_state = 100
     normalize_advantages = True
     learn_std = False
@@ -20,6 +21,7 @@ class CheetahConfig:
     eps = 0.01
     critic_lr = 1e-2
     policy_lr = 1e-4
+    lr_decay = 0.99
     n_samples_per_state = 100
     normalize_advantages = True
     learn_std = False
@@ -37,6 +39,7 @@ class WalkerConfig:
     eps = 0.01
     critic_lr = 1e-2
     policy_lr = 1e-4
+    lr_decay = 0.99
     n_samples_per_state = 100
     normalize_advantages = True
     learn_std = False
@@ -54,6 +57,7 @@ class ReacherConfig:
     eps = 0.01
     critic_lr = 1e-3
     policy_lr = 1e-4
+    lr_decay = 0.99
     n_samples_per_state = 100
     normalize_advantages = True
     learn_std = False
@@ -71,6 +75,7 @@ class LanderConfig:
     eps = 0.01
     critic_lr = 1e-2
     policy_lr = 1e-3
+    lr_decay = 0.99
     n_samples_per_state = 100
     normalize_advantages = True
     learn_std = False

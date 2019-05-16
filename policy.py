@@ -14,7 +14,7 @@ import random
 '''
 
 class Policy(nn.Module):
-    def __init__(self, env, config, metrics_writer):
+    def __init__(self, env, config, metrics_writer, optimizer='adam'):
         super(Policy, self).__init__()
         self.clip_grad = config.clip_grad
         self.clip_actions = config.clip_actions
@@ -38,7 +38,11 @@ class Policy(nn.Module):
         self.gamma = config.gamma
         self.normalize_advantages = config.normalize_advantages
 
-        self.optimizer = optim.Adam(self.parameters(), lr=config.policy_lr)
+        if optimizer == 'adam':
+            self.optimizer = optim.Adam(self.parameters(), lr=config.policy_lr)
+        elif optimizer == 'adagrad':
+            self.optimizer = optim.Adagrad(self.parameters(), lr=config.policy_lr, lr_decay=config.lr_decay)
+            
         self.metrics_writer = metrics_writer
 
     def forward(self, out):
@@ -70,8 +74,8 @@ class Policy(nn.Module):
 
 
 class PolicyReinforce(Policy):
-    def __init__(self, env, config, metrics_writer):
-        super(PolicyReinforce, self).__init__(env, config, metrics_writer)
+    def __init__(self, env, config, metrics_writer, optimizer='adam'):
+        super(PolicyReinforce, self).__init__(env, config, metrics_writer, optimizer)
         self.normalize_advantages = config.normalize_advantages
 
     def compute_advantages(self, states, rewards, vcritic=None):
@@ -156,8 +160,8 @@ class PolicyReinforce(Policy):
     This variant uses backward() to train the policy in an episodic fashion, using the standard REINFORCE update.
 '''
 class PolicyMC(Policy):
-    def __init__(self, env, config, metrics_writer, num_actions=100):
-        super(PolicyMC, self).__init__(env, config, metrics_writer)
+    def __init__(self, env, config, metrics_writer, num_actions=100, optimizer='adam'):
+        super(PolicyMC, self).__init__(env, config, metrics_writer, optimizer)
         self.n_samples_per_state = num_actions
 
     def apply_gradient_episode(self, ep_states, ep_actions, ep_rewards, episode, qcritic, vcritic):
@@ -247,8 +251,8 @@ class PolicyMC(Policy):
     Policy is trained using expected policy gradients through numerical integration.
 '''
 class PolicyIntegration(Policy):
-    def __init__(self, env, config, metrics_writer):
-        super(PolicyIntegration, self).__init__(env, config, metrics_writer)
+    def __init__(self, env, config, metrics_writer, optimizer='adam'):
+        super(PolicyIntegration, self).__init__(env, config, metrics_writer, optimizer)
 
     def apply_gradient_episode(self, ep_states, ep_actions, ep_rewards, episode, qcritic, vcritic=None):
 
@@ -286,8 +290,8 @@ class PolicyIntegration(Policy):
         return
 
 class PolicyIntegrationTrapezoidal(Policy):
-    def __init__(self, env, config, metrics_writer, num_actions=1000):
-        super(PolicyIntegrationTrapezoidal, self).__init__(env, config, metrics_writer)
+    def __init__(self, env, config, metrics_writer, num_actions=1000, optimizer='adam'):
+        super(PolicyIntegrationTrapezoidal, self).__init__(env, config, metrics_writer, optimizer)
         self.n_samples_per_state = config.n_samples_per_state
         self.num_actions = num_actions
 
