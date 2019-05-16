@@ -13,6 +13,34 @@ from vcritic import VCritic
 from metrics import MetricsWriter
 from utils import *
 
+def run_eval(env, policy, num_episodes=5):
+
+    print("Running Eval for {} episodes...".format(num_episodes))
+
+    total_rewards = []
+
+    for ep in range(num_episodes):
+
+        observation = env.reset()
+        done = False
+        ep_length = 0
+
+        ep_rewards = []
+
+        while not done:
+            # env.render()
+            action = policy.get_action(observation)
+            observation, reward, done, info = env.step(action)
+            ep_rewards.append(reward)
+            ep_length += 1
+
+        total_reward = np.sum(ep_rewards)
+        total_rewards.append(total_reward)
+
+    avg_reward = np.mean(total_rewards)
+
+    return avg_reward
+
 def run_id_2_seed(run_id):
     id_2_seed = {'1' : 5789 ,
                 '2' : 9584,
@@ -61,7 +89,7 @@ def run(env_name, config,
         use_target=False,
         use_policy_target=False,
         use_gpu=False,
-        checkpoint_freq=1000,
+        checkpoint_freq=500,
         num_episodes=5000,
         run_id='NA',
         exp_id='NA',
@@ -113,6 +141,7 @@ def run(env_name, config,
     vcritic.train()
 
     total_steps = 0
+    best_eval_reward = -np.inf
 
     for episode in range(num_episodes):
 
@@ -170,13 +199,18 @@ def run(env_name, config,
         metrics_writer.write_metric(episode, "policy_std", torch.exp(policy.log_std)[0])
 
         if episode % checkpoint_freq == 0:
+            eval_reward = run_eval(env, policy)
+            print("Eval Reward: {} | Best Eval Reward: {}".format(eval_reward, best_eval_reward))
+            if eval_reward > best_eval_reward:
+                best_eval_reward = eval_reward
+
             target_critic = None
             critic = None
             if use_qcritic:
                 critic = qcritic
                 if use_target:
                     target_critic = target_qcritic
-            save_path = os.path.join(checkpoint_dir, "{}.tar".format(run_name))
+            save_path = os.path.join(checkpoint_dir, "{}-episode={}-eval_reward={}.tar".format(run_name, episode, int(eval_reward)))
             save_checkpoint(policy, seed, env, config, use_qcritic, use_target, policy_type, env_name, num_actions,
                             run_id,
                             exp_id,
@@ -189,13 +223,16 @@ def run(env_name, config,
                             save_path=save_path,
                             expected_sarsa=expected_sarsa)
 
+    eval_reward = run_eval(env, policy)
+    print("Eval Reward: {} | Best Eval Reward: {}".format(eval_reward, best_eval_reward))
+
     target_critic = None
     critic = None
     if use_qcritic:
         critic = qcritic
         if use_target:
             target_critic = target_qcritic
-    save_path = os.path.join(checkpoint_dir, "{}.tar".format(run_name))
+    save_path = os.path.join(checkpoint_dir, "{}-episode={}-eval_reward={}.tar".format(run_name, episode, int(eval_reward)))
     save_checkpoint(policy, seed, env, config, use_qcritic, use_target, policy_type, env_name, num_actions,
                     run_id,
                     exp_id,
@@ -246,6 +283,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_actions', type=int, default=100)
     parser.add_argument('--num_episodes', type=int, default=0)
     parser.add_argument('--results_dir', type=str, default='')
+    parser.add_argument('--checkpoint_freq', type=int, default=500)
     #parser.add_argument('--model_path', required=True, type=str)
 
 
@@ -281,7 +319,8 @@ if __name__ == '__main__':
         exp_id=args.exp_id,
         num_episodes=num_episodes,
         results_dir=args.results_dir,
-        expected_sarsa=args.expected_sarsa)
+        expected_sarsa=args.expected_sarsa,
+        checkpoint_freq=args.checkpoint_freq)
 
     end_time = time.time()
 

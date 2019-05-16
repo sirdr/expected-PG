@@ -45,7 +45,7 @@ def get_policy(policy_type, env, config, writer, num_actions):
         print("invalid policy type") #should never get here
     return policy
 
-def get_writer_name(policy_type, config, seed, use_target, env_name, num_actions, run_id='NA', exp_id='NA', evaluation=False, expected_sarsa=False):
+def get_writer_name(policy_type, config, seed, use_target, env_name, num_actions, run_id='NA', exp_id='NA', evaluation=-1, expected_sarsa=False):
     name = "{}-{}-{}-{}-exp_id={}-run_id={}-seed={}-num_episodes={}".format(policy_type, env_name, config.critic_lr, config.policy_lr, exp_id, run_id, seed, config.num_episodes)
     if policy_type == 'mc':
         name = name+'-num_samples={}'.format(num_actions)
@@ -74,8 +74,8 @@ def get_writer_name(policy_type, config, seed, use_target, env_name, num_actions
 
     name = name + "-{}".format(int(time.time()))
 
-    if evaluation:
-        name = name+'-eval'
+    if evaluation > -1:
+        name = name+'-eval={}'.format(evaluation)
     return name
 
 def save_checkpoint(policy, seed, env, config, use_qcritic, use_target, policy_type, env_name, num_actions,
