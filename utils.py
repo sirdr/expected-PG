@@ -40,14 +40,14 @@ def get_policy(policy_type, env, config, writer, num_actions):
     elif policy_type == 'reinforce':
         policy = PolicyReinforce(env, config, writer)
     elif policy_type == 'integrate':
-        policy = PolicyIntegrationTrapezoidal(env, config, writer)
+        policy = PolicyIntegrationTrapezoidal(env, config, writer, num_actions)
     else:
         print("invalid policy type") #should never get here
     return policy
 
 def get_writer_name(policy_type, config, seed, use_target, env_name, num_actions, run_id='NA', exp_id='NA', evaluation=False, expected_sarsa=False):
     name = "{}-{}-{}-{}-exp_id={}-run_id={}-seed={}".format(policy_type, env_name, config.critic_lr, config.policy_lr, exp_id, run_id, seed)
-    
+
     if policy_type == 'mc':
         name = name+'-num_samples={}'.format(num_actions)
     elif policy_type == 'reinforce':
@@ -82,12 +82,12 @@ def get_writer_name(policy_type, config, seed, use_target, env_name, num_actions
 def save_checkpoint(policy, seed, env, config, use_qcritic, use_target, policy_type, env_name, num_actions,
                     run_id,
                     exp_id,
-                    vcritic=None, 
-                    critic=None, 
-                    target_critic=None, 
-                    reward=None, episode=None, 
-                    timesteps=None, 
-                    save_path='model.tar', 
+                    vcritic=None,
+                    critic=None,
+                    target_critic=None,
+                    reward=None, episode=None,
+                    timesteps=None,
+                    save_path='model.tar',
                     verbose=True,
                     expected_sarsa=False):
     if verbose:
