@@ -296,6 +296,8 @@ class PolicyIntegrationTrapezoidal(Policy):
 
         self.weight = ((self.action_space_high - self.action_space_low) / num_actions).prod()
 
+        print(self.weight)
+
     def apply_gradient_episode(self, ep_states, ep_actions, ep_rewards, episode, qcritic, vcritic=None):
 
         self.optimizer.zero_grad()
@@ -326,6 +328,7 @@ class PolicyIntegrationTrapezoidal(Policy):
         integrand_reshaped = torch.reshape(integrand, [-1, self.total_actions])
         integrand_reshaped_avg = (integrand_reshaped[:, :-1] + integrand_reshaped[:, 1:])/2.0
         integrand_avg = torch.reshape(integrand_reshaped_avg, [-1, 1])
+        print(integrand_avg.shape)
         weighted_integrand = self.weight*integrand_avg
 
         loss = -torch.sum(weighted_integrand) / (num_states * self.total_actions)

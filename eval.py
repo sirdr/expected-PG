@@ -14,7 +14,7 @@ from utils import *
 # Logging stuff
 from tensorboardX import SummaryWriter
 
-def evaluate(load_path):
+def evaluate(load_path, num_evals=1):
 
     checkpoint = load_checkpoint(load_path)
     seed = checkpoint['seed']
@@ -25,13 +25,14 @@ def evaluate(load_path):
     policy_type = checkpoint['policy_type']
     env_name = checkpoint['env_name']
     num_actions = checkpoint['num_actions']
+    expected_sarsa = checkpoint['expected_sarsa']
     run_id = checkpoint['run_id']
     exp_id = checkpoint['exp_id']
 
     env.seed(seed) 
     torch.manual_seed(seed)
 
-    run_name = get_writer_name(policy_type, config, seed, use_target, env_name, num_actions, run_id=run_id, exp_id=exp_id, evaluation=True)
+    run_name = get_writer_name(policy_type, config, seed, use_target, env_name, num_actions, run_id=run_id, exp_id=exp_id, expected_sarsa=expected_sarsa, evaluation=True)
     metrics_writer = MetricsWriter(run_name)
 
     vcritic = VCritic(env, config)
@@ -57,23 +58,27 @@ def evaluate(load_path):
     policy.eval()
     vcritic.eval()
 
-    observation = env.reset()
-    done = False
-    ep_length = 0
+    print("Starting Evaluation for {} Episodes".format(num_evals))
 
-    ep_rewards = []
+    for i in range(num_evals):
 
-    while not done:
-        # env.render()
-        action = policy.get_action(observation)
-        observation, reward, done, info = env.step(action)
-        ep_rewards.append(reward)
-        ep_length += 1
+        observation = env.reset()
+        done = False
+        ep_length = 0
 
-    total_reward = np.sum(ep_rewards)
+        ep_rewards = []
 
-    print("Total Evaluation Reward: {}".format(total_reward))
-    metrics_writer.write_metric(0, "total_reward", total_reward)
+        while not done:
+            # env.render()
+            action = policy.get_action(observation)
+            observation, reward, done, info = env.step(action)
+            ep_rewards.append(reward)
+            ep_length += 1
+
+        total_reward = np.sum(ep_rewards)
+
+        print("Episode: {} | Total Reward: {}".format(i, total_reward))
+        metrics_writer.write_metric(i, "total_reward", total_reward)
 
 
 
@@ -87,6 +92,13 @@ if __name__ == '__main__':
     # TODO: add checkpointing
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_path', required=True, type=str)
+    parser.add_argument('--num_evals', type=int, default=1)
+
     args = parser.parse_args()
 
-    evaluate(args.model_path)
+    if args.num_evals < 1:
+        num_evals = 1
+    else:
+        num_evals = args.num_evals
+
+    evaluate(args.model_path, num_evals=num_evals)
