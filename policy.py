@@ -308,6 +308,7 @@ class PolicyIntegrationTrapezoidal(Policy):
         num_states = states.shape[0]
 
         # TODO: Might not work in higher dimensions (>1)! Check linspace.
+        # TODO: use np.meshgrid for higher dims
         actions = np.linspace(self.action_space_low, self.action_space_high, num=self.num_actions)
         actions = np.squeeze(actions)
         weights = (actions[1:]-actions[:-1])

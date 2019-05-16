@@ -157,6 +157,8 @@ def run(env_name, config,
                     if use_policy_target:
                         soft_update(target_policy, policy, tau=config.tau)
 
+            timesteps += 1
+
         vcritic.apply_gradient_episode(ep_states, ep_rewards)
         # vcritic.apply_gradient(ep_states[-2], ep_actions[-1], ep_rewards[-1], None)
         if use_qcritic:
@@ -195,7 +197,7 @@ def run(env_name, config,
                             target_critic=target_critic, 
                             episode=episode, 
                             reward=total_reward, 
-                            timesteps=total_steps, 
+                            timesteps=timesteps, 
                             save_path=save_path,
                             expected_sarsa=expected_sarsa)
 
@@ -214,14 +216,14 @@ def run(env_name, config,
                     target_critic=target_critic, 
                     episode=episode, 
                     reward=total_reward, 
-                    timesteps=total_steps, 
+                    timesteps=timesteps, 
                     save_path=save_path,
                     expected_sarsa=expected_sarsa)
 
 if __name__ == '__main__':
 
     # TODO: 7000 episodes each, ~10 iterations
-    # TODO: Vary sample size for MC and Fixed Grid (1, 5, 10, 20, 100, 1000)
+    # TODO: Vary sample size for MC and Fixed Grid (1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024)
     # TODO: Simpsons 2000, 10 iterations (1, 5, 10, 20, 100, 1000)
 
     ## TODO: figure out how to run using GPU
@@ -234,6 +236,10 @@ if __name__ == '__main__':
     ## TODO: add env_name, task_id to writer
 
     ## TODO: finish eval 
+
+    ## TODO: keep track of num samples seen
+    ## TODO: keep track of timesteps
+    ## TODO: normalize rewards
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--policy', required=True, type=str,
