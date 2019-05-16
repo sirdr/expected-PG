@@ -13,6 +13,7 @@ class InvertedPendulumConfig:
     action_std = 0.2
     clip_actions=True
     clip_grad = 1
+    num_episodes = 4000
 
 class CheetahConfig:
     gamma = 0.9
@@ -29,6 +30,7 @@ class CheetahConfig:
     action_std = 0.2
     clip_actions=True
     clip_grad = 1
+    num_episodes = 5000
 
 class WalkerConfig:
     gamma = 0.9
@@ -45,6 +47,7 @@ class WalkerConfig:
     action_std = 0.2
     clip_actions=True
     clip_grad = 1
+    num_episodes = 5000
 
 class ReacherConfig:
     gamma = 1.00
@@ -61,6 +64,7 @@ class ReacherConfig:
     action_std = 0.2
     clip_actions=True
     clip_grad = 1
+    num_episodes = 5000
 
 class LanderConfig:
     gamma = 0.99
@@ -77,3 +81,4 @@ class LanderConfig:
     action_std = 0.2
     clip_actions=True
     clip_grad = 1
+    num_episodes = 5000

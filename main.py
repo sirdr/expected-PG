@@ -256,7 +256,7 @@ if __name__ == '__main__':
     parser.add_argument('--run_id', type=str, default='NA')
     parser.add_argument('--exp_id', type=str, default='NA')
     parser.add_argument('--num_actions', type=int, default=100)
-    parser.add_argument('--num_episodes', type=int, default=5000)
+    parser.add_argument('--num_episodes', type=int, default=0)
     parser.add_argument('--results_dir', type=str, default='')
     #parser.add_argument('--model_path', required=True, type=str)
 
@@ -275,6 +275,12 @@ if __name__ == '__main__':
     config.clip_actions = args.clip_actions
     config.clip_grad = args.clip_grad
 
+    if args.num_episodes > 0:
+        num_episodes = args.num_episodes
+        config.num_episodes = args.num_episodes
+    else:
+        num_episodes = config.num_episodes
+
     start_time = time.time()
 
     run(env_name, config,
@@ -285,7 +291,7 @@ if __name__ == '__main__':
         use_gpu=args.use_gpu,
         run_id=args.run_id,
         exp_id=args.exp_id,
-        num_episodes=args.num_episodes,
+        num_episodes=num_episodes,
         results_dir=args.results_dir,
         expected_sarsa=args.expected_sarsa)
 
