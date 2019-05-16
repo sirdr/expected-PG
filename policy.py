@@ -39,6 +39,7 @@ class Policy(nn.Module):
         self.normalize_advantages = config.normalize_advantages
 
         self.optimizer = optim.Adam(self.parameters(), lr=config.policy_lr)
+        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=200, gamma=0.95)
         self.metrics_writer = metrics_writer
 
     def forward(self, out):
@@ -125,6 +126,7 @@ class PolicyReinforce(Policy):
             torch.nn.utils.clip_grad_norm(self.parameters(), self.clip_grad)
 
         self.optimizer.step()
+        self.scheduler.step()
 
     def apply_gradient_batch(self, states, actions, rewards, batch, vcritic):
 
@@ -209,6 +211,7 @@ class PolicyMC(Policy):
             torch.nn.utils.clip_grad_norm(self.parameters(), self.clip_grad)
 
         self.optimizer.step()
+        self.scheduler.step()
 
     def apply_gradient_batch(self, states, actions, rewards, batch, qcritic, vcritic):
 
@@ -283,7 +286,7 @@ class PolicyIntegration(Policy):
 
         # Take an optimizer step.
         self.optimizer.step()
-        return
+        self.scheduler.step()
 
 class PolicyIntegrationTrapezoidal(Policy):
     def __init__(self, env, config, metrics_writer, num_actions=1000):
@@ -338,3 +341,4 @@ class PolicyIntegrationTrapezoidal(Policy):
             torch.nn.utils.clip_grad_norm(self.parameters(), self.clip_grad)
 
         self.optimizer.step()
+        self.scheduler.step()

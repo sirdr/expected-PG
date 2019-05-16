@@ -214,20 +214,14 @@ if __name__ == '__main__':
     # TODO: Vary sample size for MC and Fixed Grid (1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024)
     # TODO: Simpsons 2000, 10 iterations (1, 5, 10, 20, 100, 1000)
 
-    ## TODO: figure out how to run using GPU
-    ## TODO: add other envs / make sure that trapezoidal works on higher dimensions
+    # TODO: figure out how to run using GPU
 
-    ## TODO: investigate unlearning
+    # TODO: run integrate to investigate unlearning
+    # TODO: add gradient comparison script
 
-    ## TODO: run integrate to investigate unlearning
-    ## TODO: add gradient comparison script
-    ## TODO: add env_name, task_id to writer
-
-    ## TODO: finish eval
-
-    ## TODO: keep track of num samples seen
-    ## TODO: keep track of timesteps
-    ## TODO: normalize rewards
+    # TODO: keep track of num samples seen
+    # TODO: keep track of timesteps
+    # TODO: normalize rewards
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--policy', required=True, type=str,

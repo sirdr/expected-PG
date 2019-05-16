@@ -24,6 +24,8 @@ class QCritic(nn.Module):
         self.gamma = config.gamma
 
         self.optimizer = optim.Adam(self.parameters(), lr=config.critic_lr)
+        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=200000, gamma=0.95)
+
         self.metrics_writer = metrics_writer
         self.step = 0
 
