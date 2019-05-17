@@ -94,9 +94,8 @@ def run(env_name, config,
         run_id='NA',
         exp_id='NA',
         results_dir='',
-        expected_sarsa=False,
-        policy_optimizer='adam',
-        critic_optimizer='adam'):
+        expected_sarsa=False
+        ):
 
     checkpoint_dir = os.path.join(results_dir, 'checkpoints/')
     runs_dir = os.path.join(results_dir, 'runs/')
@@ -118,25 +117,24 @@ def run(env_name, config,
     num_actions = config.n_samples_per_state
     run_name = get_writer_name(policy_type, config, seed, use_target, env_name, num_actions, 
                                 run_id=run_id, exp_id=exp_id, 
-                                expected_sarsa=expected_sarsa, 
-                                policy_optimizer=policy_optimizer,
-                                critic_optimizer=critic_optimizer)
+                                expected_sarsa=expected_sarsa
+                                )
     metrics_writer = MetricsWriter(run_name, runs_dir=runs_dir, score_dir=score_dir)
 
-    vcritic = VCritic(env, config, optimizer=critic_optimizer)
-    policy = get_policy(policy_type, env, config, metrics_writer, num_actions, policy_optimizer)
+    vcritic = VCritic(env, config)
+    policy = get_policy(policy_type, env, config, metrics_writer, num_actions)
 
     if policy_type == 'integrate' or policy_type == 'mc':
         use_qcritic = True
         target_qcritic = None
-        qcritic = QCritic(env, config, metrics_writer, optimizer=critic_optimizer)
+        qcritic = QCritic(env, config, metrics_writer)
         qcritic.train()
         if use_target:
-            target_qcritic = QCritic(env, config, metrics_writer, optimizer=critic_optimizer)
+            target_qcritic = QCritic(env, config, metrics_writer)
             target_qcritic.load_state_dict(qcritic.state_dict())
             target_qcritic.eval()
         if use_policy_target:
-            target_policy = get_policy(policy_type, env, config, metrics_writer, num_actions, policy_optimizer)
+            target_policy = get_policy(policy_type, env, config, metrics_writer, num_actions)
             target_policy.load_state_dict(policy.state_dict())
             target_policy.eval()
 
@@ -217,7 +215,7 @@ def run(env_name, config,
                 if use_target:
                     target_critic = target_qcritic
             save_path = os.path.join(checkpoint_dir, "{}-episode={}-eval_reward={}.tar".format(run_name, episode, int(eval_reward)))
-            save_checkpoint(policy, seed, env, config, use_qcritic, use_target, policy_type, env_name, num_actions, policy_optimizer, critic_optimizer,
+            save_checkpoint(policy, seed, env, config, use_qcritic, use_target, policy_type, env_name, num_actions,
                             run_id,
                             exp_id,
                             vcritic=vcritic,
@@ -239,7 +237,7 @@ def run(env_name, config,
         if use_target:
             target_critic = target_qcritic
     save_path = os.path.join(checkpoint_dir, "{}-episode={}-eval_reward={}.tar".format(run_name, episode, int(eval_reward)))
-    save_checkpoint(policy, seed, env, config, use_qcritic, use_target, policy_type, env_name, num_actions, policy_optimizer, critic_optimizer,
+    save_checkpoint(policy, seed, env, config, use_qcritic, use_target, policy_type, env_name, num_actions,
                     run_id,
                     exp_id,
                     vcritic=vcritic,
@@ -257,20 +255,14 @@ if __name__ == '__main__':
     # TODO: Vary sample size for MC and Fixed Grid (1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024)
     # TODO: Simpsons 2000, 10 iterations (1, 5, 10, 20, 100, 1000)
 
-    ## TODO: figure out how to run using GPU
-    ## TODO: add other envs / make sure that trapezoidal works on higher dimensions
+    # TODO: figure out how to run using GPU
 
-    ## TODO: investigate unlearning
+    # TODO: run integrate to investigate unlearning
+    # TODO: add gradient comparison script
 
-    ## TODO: run integrate to investigate unlearning
-    ## TODO: add gradient comparison script
-    ## TODO: add env_name, task_id to writer
-
-    ## TODO: finish eval
-
-    ## TODO: keep track of num samples seen
-    ## TODO: keep track of timesteps
-    ## TODO: normalize rewards
+    # TODO: keep track of num samples seen
+    # TODO: keep track of timesteps
+    # TODO: normalize rewards
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--policy', required=True, type=str,
@@ -290,13 +282,13 @@ if __name__ == '__main__':
     parser.add_argument('--num_episodes', type=int, default=0)
     parser.add_argument('--results_dir', type=str, default='')
     parser.add_argument('--checkpoint_freq', type=int, default=500)
-    parser.add_argument('--policy_optimizer', type=str, choices=['adam', 'adagrad'], default='adam')
-    parser.add_argument('--critic_optimizer', type=str, choices=['adam', 'adagrad'], default='adam')
-    parser.add_argument('--lr_decay', type=float, default=-1)
+    parser.add_argument('--policy_lr_decay', type=float, default=-1)
+    parser.add_argument('--critic_lr_decay', type=float, default=-1)
+    parser.add_argument('--critic_lr_step_sizes', type=int, default=-1)
+    parser.add_argument('--policy_lr_step_sizes', type=int, default=-1)
     parser.add_argument('--policy_lr', type=float, default=-1)
     parser.add_argument('--critic_lr', type=float, default=-1)
     #parser.add_argument('--model_path', required=True, type=str)
-
 
     args = parser.parse_args()
 
@@ -312,8 +304,14 @@ if __name__ == '__main__':
     config.clip_actions = args.clip_actions
     config.clip_grad = args.clip_grad
 
-    if args.lr_decay >= 0:
-        config.lr_decay = args.lr_decay
+    if args.policy_lr_decay >= 0:
+        config.policy_lr_decay = args.policy_lr_decay
+    if args.critic_lr_decay >= 0:
+        config.critic_lr_decay = args.critic_lr_decay
+    if args.policy_lr_step_sizes >= 0:
+        config.policy_lr_step_sizes = args.policy_lr_step_sizes
+    if args.critic_lr_step_sizes >= 0:
+        config.critic_lr_step_sizes = args.critic_lr_step_sizes
     if args.policy_lr >= 0:
         config.policy_lr = args.policy_lr
     if args.critic_lr >= 0:
@@ -338,9 +336,8 @@ if __name__ == '__main__':
         num_episodes=num_episodes,
         results_dir=args.results_dir,
         expected_sarsa=args.expected_sarsa,
-        checkpoint_freq=args.checkpoint_freq,
-        policy_optimizer=args.policy_optimizer,
-        critic_optimizer=args.critic_optimizer)
+        checkpoint_freq=args.checkpoint_freq
+        )
 
     end_time = time.time()
 

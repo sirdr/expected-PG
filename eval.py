@@ -40,7 +40,7 @@ def run_eval(env, metrics_writer, policy, num_episodes=1):
 
 
 
-def evaluate(load_path, num_evals=1, num_episodes=1, record=False, record_dir='recordings'):
+def evaluate(load_path, num_episodes=1, record=False, record_dir='recordings'):
 
     checkpoint = load_checkpoint(load_path)
     seed = checkpoint['seed']
@@ -61,30 +61,26 @@ def evaluate(load_path, num_evals=1, num_episodes=1, record=False, record_dir='r
 
     torch.manual_seed(seed)
 
-    for i in range(num_evals):
+    run_name = get_writer_name(policy_type, config, seed, use_target, env_name, num_actions, run_id=run_id, exp_id=exp_id, expected_sarsa=expected_sarsa, evaluation=True)
+    metrics_writer = MetricsWriter(run_name)
 
-        run_name = get_writer_name(policy_type, config, seed, use_target, env_name, num_actions, run_id=run_id, exp_id=exp_id, expected_sarsa=expected_sarsa, evaluation=True)
-        metrics_writer = MetricsWriter(run_name)
+    policy = get_policy(policy_type, env, config, metrics_writer, num_actions=num_actions, optimizer)
+    policy.load_state_dict(checkpoint['policy_state_dict'])
+    policy.optimizer.load_state_dict(checkpoint['policy_optimizer_state_dict'])
 
-        policy = get_policy(policy_type, env, config, metrics_writer, num_actions=num_actions, optimizer)
-        policy.load_state_dict(checkpoint['policy_state_dict'])
-        policy.optimizer.load_state_dict(checkpoint['policy_optimizer_state_dict'])
+    policy.eval()
 
-        policy.eval()
+    env = gym.make(env_name)
 
-        new_seed = np.random.randint(1000)
-        env = gym.make(env_name)
-        env.seed(new_seed) 
-
-        if record:
+    if record:
+        for i in range(record):
             model_name = load_path.split("/")[-1].split(".tar")[0]
             record_path = os.path.join(record_dir, model_name, "run-{}".format(i))
             env = gym.wrappers.Monitor(env,record_path, video_callable=lambda x: True, resume=True)
             run_eval(env, metrics_writer, policy, num_episodes=1)
 
-        else:
-            env.seed(new_seed) 
-            run_eval(env, metrics_writer, policy, num_episodes=num_episodes)
+    else:
+        run_eval(env, metrics_writer, policy, num_episodes=num_episodes)
 
 
 
@@ -99,14 +95,13 @@ if __name__ == '__main__':
     # TODO: add checkpointing
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_path', required=True, type=str)
-    parser.add_argument('--num_evals', type=int, default=1)
     parser.add_argument('--num_episodes', type=int, default=1)
-    parser.add_argument('--record', action='store_true')
+    parser.add_argument('--record', type=int, default=0)
 
     args = parser.parse_args()
 
-    num_evals = max(args.num_evals, 1)
     num_episodes = max(args.num_episodes, 1)
+    record = max(args.record, 0)
 
 
-    evaluate(args.model_path, num_evals=num_evals, num_episodes=num_episodes, record=args.record)
+    evaluate(args.model_path, num_episodes=num_episodes, record=record)

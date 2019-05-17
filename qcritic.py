@@ -10,7 +10,7 @@ import pdb
 Q-Critic is trained by SARSA (learning current policy's state-action values).
 '''
 class QCritic(nn.Module):
-    def __init__(self, env, config, metrics_writer, use_gpu=False, optimizer='adam'):
+    def __init__(self, env, config, metrics_writer, use_gpu=False):
         super(QCritic, self).__init__()
         self.state_space = env.observation_space.shape[0]
         self.action_space = env.action_space.shape[0]
@@ -23,11 +23,9 @@ class QCritic(nn.Module):
 
         self.gamma = config.gamma
 
-        if optimizer == 'adam':
-            self.optimizer = optim.Adam(self.parameters(), lr=config.critic_lr)
-        elif optimizer == 'adagrad':
-            self.optimizer = optim.Adagrad(self.parameters(), lr=config.critic_lr, lr_decay=config.lr_decay)
-            
+        self.optimizer = optim.Adam(self.parameters(), lr=config.critic_lr)
+        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=config.critic_lr_step_size, gamma=config.critic_lr_decay)
+
         self.metrics_writer = metrics_writer
         self.step = 0
 

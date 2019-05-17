@@ -10,7 +10,7 @@ import pdb
 V-Critic is trained by TD (learning current policy value).
 '''
 class VCritic(nn.Module):
-    def __init__(self, env, config, optimizer='adam'):
+    def __init__(self, env, config):
         super(VCritic, self).__init__()
         self.state_space = env.observation_space.shape[0]
 
@@ -21,11 +21,7 @@ class VCritic(nn.Module):
         self.layers = nn.ModuleList(self.layers)
 
         self.gamma = config.gamma
-
-        if optimizer == 'adam':
-            self.optimizer = optim.Adam(self.parameters(), lr=config.critic_lr)
-        elif optimizer == 'adagrad':
-            self.optimizer = optim.Adagrad(self.parameters(), lr=config.critic_lr, lr_decay=config.lr_decay)
+        self.optimizer = optim.Adam(self.parameters(), lr=config.critic_lr)
 
     def forward(self, out):
         for layer in self.layers[:-1]:

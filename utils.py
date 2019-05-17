@@ -32,31 +32,28 @@ def get_config(env):
     else:
         print("Invalid environment name") #should never get here
 
-def get_policy(policy_type, env, config, writer, num_actions, optimizer):
+def get_policy(policy_type, env, config, writer, num_actions):
     policy = None
 
     if policy_type == 'mc':
-        policy = PolicyMC(env, config, writer, num_actions=num_actions, optimizer=optimizer)
+        policy = PolicyMC(env, config, writer, num_actions=num_actions)
     elif policy_type == 'reinforce':
-        policy = PolicyReinforce(env, config, writer, optimizer=optimizer)
+        policy = PolicyReinforce(env, config, writer)
     elif policy_type == 'integrate':
-        policy = PolicyIntegrationTrapezoidal(env, config, writer, num_actions=num_actions, optimizer=optimizer)
+        policy = PolicyIntegrationTrapezoidal(env, config, writer, num_actions=num_actions)
     else:
         print("invalid policy type") #should never get here
     return policy
 
-def get_writer_name(policy_type, config, seed, use_target, env_name, num_actions, policy_optimizer, critic_optimizer, run_id='NA', exp_id='NA', evaluation=-1, expected_sarsa=False):
-    name = "{}-{}-{}-{}-exp_id={}-run_id={}-seed={}-num_episodes={}-policy_optimizer={}".format(policy_type, env_name, config.critic_lr, config.policy_lr, exp_id, run_id, seed, config.num_episodes, policy_optimizer)
+def get_writer_name(policy_type, config, seed, use_target, env_name, num_actions, run_id='NA', exp_id='NA', evaluation=-1, expected_sarsa=False):
+    name = "{}-{}-{}-{}-exp_id={}-run_id={}-seed={}-num_episodes={}".format(policy_type, env_name, config.critic_lr, config.policy_lr, exp_id, run_id, seed, config.num_episodes)
     
-    if policy_optimizer == 'adagrad':
-        name = name + '-lr_decay={}'.format(config.lr_decay)
+    name = name + '-policy_lr_decay={}-policy_lr_step={}'.format(config.policy_lr_decay, config.policy_lr_step_size)
 
     if policy_type == 'reinforce':
         pass
     else:
-        name = name + '-critic_optimizer={}'.format(critic_optimizer)
-        if critic_optimizer == 'adagrad':
-            name = name + '-lr_decay={}'.format(config.lr_decay)
+        name = name + '-critic_lr_decay={}-critic_lr_step={}'.format(config.critic_lr_decay, config.critic_lr_step_size)
         if policy_type == 'mc':
             name = name+'-num_samples={}'.format(num_actions)
         elif policy_type == 'integrate':
@@ -86,7 +83,7 @@ def get_writer_name(policy_type, config, seed, use_target, env_name, num_actions
         name = name+'-eval={}'.format(evaluation)
     return name
 
-def save_checkpoint(policy, seed, env, config, use_qcritic, use_target, policy_type, env_name, num_actions, policy_optimizer, critic_optimizer,
+def save_checkpoint(policy, seed, env, config, use_qcritic, use_target, policy_type, env_name, num_actions,
                     run_id,
                     exp_id,
                     vcritic=None,
@@ -112,9 +109,7 @@ def save_checkpoint(policy, seed, env, config, use_qcritic, use_target, policy_t
                 'run_id': run_id,
                 'exp_id': exp_id,
                 'num_actions': num_actions,
-                'expected_sarsa': expected_sarsa,
-                'policy_optimizer': policy_optimizer,
-                'critic_optimizer': critic_optimizer
+                'expected_sarsa': expected_sarsa
                 }
     if vcritic is not None:
         save_dict['vcritic_state_dict'] = vcritic.state_dict()
