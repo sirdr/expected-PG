@@ -299,6 +299,9 @@ if __name__ == '__main__':
     parser.add_argument('--policy_lr_step_sizes', type=int, default=-1)
     parser.add_argument('--policy_lr', type=float, default=-1)
     parser.add_argument('--critic_lr', type=float, default=-1)
+    parser.add_argument('--action_std', type=float, default=-1)
+    parser.add_argument('--learn_std', action='store_true')
+    parser.add_argument('--clever', action='store_true')
     #parser.add_argument('--model_path', required=True, type=str)
 
     args = parser.parse_args()
@@ -314,6 +317,8 @@ if __name__ == '__main__':
     config.n_samples_per_state = args.num_actions
     config.clip_actions = args.clip_actions
     config.clip_grad = args.clip_grad
+    config.learn_std = args.learn_std
+    config.clever = args.clever
 
     if args.policy_lr_decay >= 0:
         config.policy_lr_decay = args.policy_lr_decay
@@ -327,6 +332,8 @@ if __name__ == '__main__':
         config.policy_lr = args.policy_lr
     if args.critic_lr >= 0:
         config.critic_lr = args.critic_lr
+    if args.action_std >= 0:
+        config.action_std = args.action_std
 
     if args.num_episodes > 0:
         num_episodes = args.num_episodes
