@@ -2,7 +2,9 @@ class InvertedPendulumConfig:
     gamma = 1.00
     eps = 0.01
     critic_lr = 1e-2
+    # critic_lr = 1e-3
     policy_lr = 1e-3
+    # policy_lr = 3e-4
     policy_lr_decay = 0.95
     critic_lr_decay = 0.95
     policy_lr_step_size = 200
@@ -14,6 +16,9 @@ class InvertedPendulumConfig:
     vcritic_layers = [16]
     qcritic_layers = [48]
     policy_layers = [16]
+    # vcritic_layers = [32,32]
+    # qcritic_layers = [32,32]
+    # policy_layers = [32,32]
     action_std = 0.2
     clip_actions=True
     clip_grad = 1
@@ -22,8 +27,10 @@ class InvertedPendulumConfig:
 class CheetahConfig:
     gamma = 0.9
     eps = 0.01
-    critic_lr = 1e-2
+    # critic_lr = 1e-3
+    critic_lr = 1e-3
     policy_lr = 1e-4
+    # policy_lr = 5e-5
     policy_lr_decay = 0.95
     critic_lr_decay = 0.95
     policy_lr_step_size = 200
@@ -32,9 +39,9 @@ class CheetahConfig:
     normalize_advantages = True
     learn_std = False
     tau = .99
-    vcritic_layers = [48]
-    qcritic_layers = [48,32]
-    policy_layers = [32,32,32]
+    vcritic_layers = [32,32]
+    qcritic_layers = [32,32]
+    policy_layers = [32,32]
     action_std = 0.2
     clip_actions=True
     clip_grad = 1
@@ -51,21 +58,21 @@ class WalkerConfig:
     critic_lr_step_size = 200000
     n_samples_per_state = 100
     normalize_advantages = True
-    learn_std = False
+    learn_std = True
     tau = .99
-    vcritic_layers = [32]
-    qcritic_layers = [48]
-    policy_layers = [16,16]
+    vcritic_layers = [32,16]
+    qcritic_layers = [48,16]
+    policy_layers = [32,32]
     action_std = 0.2
     clip_actions=True
-    clip_grad = 1
+    clip_grad = 2
     num_episodes = 5000
 
-class ReacherConfig:
-    gamma = 1.00
+class HopperConfig:
+    gamma = .99
     eps = 0.01
     critic_lr = 1e-3
-    policy_lr = 1e-4
+    policy_lr = 1e-5
     policy_lr_decay = 0.95
     critic_lr_decay = 0.95
     policy_lr_step_size = 200
@@ -74,9 +81,33 @@ class ReacherConfig:
     normalize_advantages = True
     learn_std = False
     tau = .99
-    vcritic_layers = [32]
-    qcritic_layers = [48]
-    policy_layers = [32]
+    vcritic_layers = [32,32]
+    qcritic_layers = [32,32]
+    policy_layers = [32,32]
+    action_std = 0.2
+    clip_actions=True
+    clip_grad = 1
+    num_episodes = 5000
+
+class ReacherConfig:
+    gamma = 1.00
+    eps = 0.01
+    critic_lr = 1e-2
+    policy_lr = 1e-3
+    policy_lr_decay = 0.95
+    critic_lr_decay = 0.95
+    policy_lr_step_size = 200
+    critic_lr_step_size = 200000
+    n_samples_per_state = 100
+    normalize_advantages = True
+    learn_std = False
+    tau = .99
+    # vcritic_layers = [32,16]
+    # qcritic_layers = [48,16]
+    # policy_layers = [32,32]
+    vcritic_layers = [32,32]
+    qcritic_layers = [32,32]
+    policy_layers = [32,32]
     action_std = 0.2
     clip_actions=True
     clip_grad = 1

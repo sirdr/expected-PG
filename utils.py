@@ -27,6 +27,8 @@ def get_config(env):
         return config.WalkerConfig()
     elif env == "reacher":
         return config.ReacherConfig()
+    elif env == "hopper":
+        return config.HopperConfig()
     elif env == "lander":
         return config.LanderConfig()
     else:
@@ -47,7 +49,7 @@ def get_policy(policy_type, env, config, writer, num_actions):
 
 def get_writer_name(policy_type, config, seed, use_target, env_name, num_actions, run_id='NA', exp_id='NA', evaluation=-1, expected_sarsa=False):
     name = "{}-{}-{}-{}-exp_id={}-run_id={}-seed={}-num_episodes={}".format(policy_type, env_name, config.critic_lr, config.policy_lr, exp_id, run_id, seed, config.num_episodes)
-    
+
     #name = name + '-policy_lr_decay={}-policy_lr_step={}'.format(config.policy_lr_decay, config.policy_lr_step_size)
 
     if policy_type == 'reinforce':

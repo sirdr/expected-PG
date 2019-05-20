@@ -129,6 +129,30 @@ class PolicyReinforce(Policy):
         self.optimizer.step()
         self.scheduler.step()
 
+    def compute_gradient_episode(self, ep_states, ep_actions, ep_rewards, vcritic):
+
+        self.optimizer.zero_grad()
+        n_states = len(ep_states)
+        states = torch.tensor(np.array([state for state in ep_states[:-1]])).float()
+        actions = torch.tensor(np.array([action for action in ep_actions])).float()
+        advantages = torch.tensor(self.compute_advantages(states, ep_rewards, vcritic=vcritic)).float()
+
+        if(self.normalize_advantages):
+            advantages = (advantages - torch.mean(advantages)) / (0.1 + torch.std(advantages))
+
+        std = torch.exp(self.log_std)
+
+        action_means = self.forward(states)
+        log_probs = torch.sum(torch.distributions.normal.Normal(action_means, std).log_prob(actions), dim=1)
+
+        loss = - torch.dot(log_probs, advantages.detach()) / n_states
+        loss.backward()
+
+        if self.clip_grad > 0:
+            torch.nn.utils.clip_grad_norm(self.parameters(), self.clip_grad)
+
+        return self.layers[0].weight.grad
+
     def apply_gradient_batch(self, states, actions, rewards, batch, vcritic):
 
         self.optimizer.zero_grad()
@@ -207,12 +231,43 @@ class PolicyMC(Policy):
         for name, param in self.named_parameters():
             self.metrics_writer.write_metric(episode, f"grad_norm_{name}", torch.norm(param.grad))
 
-        # torch.nn.utils.clip_grad_norm(self.parameters(), 2)
         if self.clip_grad > 0:
             torch.nn.utils.clip_grad_norm(self.parameters(), self.clip_grad)
 
         self.optimizer.step()
         self.scheduler.step()
+
+    def compute_gradient_episode(self, ep_states, ep_actions, ep_rewards, qcritic, vcritic):
+
+        self.optimizer.zero_grad()
+
+        n_states = len(ep_states)
+        states = torch.tensor(np.array([state for state in ep_states[:-1]])).float()
+        action_means = self.forward(states).repeat(self.n_samples_per_state, 1)
+        action_means = torch.max(torch.min(action_means, self.action_space_high), self.action_space_low)
+
+        std = torch.exp(self.log_std)
+        dist = torch.distributions.normal.Normal(action_means, std)
+        sample = dist.sample()
+        actions = torch.max(torch.min(sample, self.action_space_high), self.action_space_low)
+
+        advantages = qcritic(states.repeat(self.n_samples_per_state, 1), actions).flatten().detach()
+        if vcritic is not None:
+            v_values = vcritic(states.repeat(self.n_samples_per_state,1)).flatten().detach()
+            advantages -= v_values
+
+        if(self.normalize_advantages):
+            advantages = (advantages - torch.mean(advantages)) / (0.1 + torch.std(advantages))
+
+        log_probs = torch.sum(torch.distributions.normal.Normal(action_means, std).log_prob(actions), dim=1)
+
+        loss = - torch.dot(log_probs, advantages.detach()) / (self.n_samples_per_state * n_states)
+        loss.backward()
+
+        if self.clip_grad > 0:
+            torch.nn.utils.clip_grad_norm(self.parameters(), self.clip_grad)
+
+        return self.layers[0].weight.grad
 
     def apply_gradient_batch(self, states, actions, rewards, batch, qcritic, vcritic):
 
@@ -343,3 +398,41 @@ class PolicyIntegrationTrapezoidal(Policy):
 
         self.optimizer.step()
         self.scheduler.step()
+
+    def compute_gradient_episode(self, ep_states, ep_actions, ep_rewards, episode, qcritic, vcritic=None):
+
+        self.optimizer.zero_grad()
+
+        states = np.array(ep_states[:-1])
+        num_states = states.shape[0]
+
+        states = np.reshape(np.tile(states, len(self.actions)), (len(self.actions)*num_states, -1))
+
+        states = torch.tensor(states).float()
+
+        actions = self.actions.repeat(num_states,1)
+
+        action_means = self.forward(states)
+
+        advantages = qcritic(states, actions).flatten().detach() - vcritic(states).flatten().detach()
+
+        if(self.normalize_advantages):
+            advantages = (advantages - torch.mean(advantages)) / (.1 + torch.std(advantages))
+
+        std = torch.exp(self.log_std)
+        log_probs = torch.sum(torch.distributions.normal.Normal(action_means, std).log_prob(actions), dim=1).flatten()
+        probs = torch.exp(log_probs)
+
+        integrand = probs * advantages
+        integrand_reshaped = torch.reshape(integrand, [-1, self.total_actions])
+        integrand_reshaped_avg = (integrand_reshaped[:, :-1] + integrand_reshaped[:, 1:])/2.0
+        integrand_avg = torch.reshape(integrand_reshaped_avg, [-1, 1])
+        weighted_integrand = self.weight*integrand_avg
+
+        loss = -torch.sum(weighted_integrand) / (num_states * self.total_actions)
+        loss.backward()
+
+        if self.clip_grad > 0:
+            torch.nn.utils.clip_grad_norm(self.parameters(), self.clip_grad)
+
+        return self.layers[0].weight.grad

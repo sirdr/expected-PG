@@ -57,17 +57,17 @@ def run_id_2_seed(run_id):
                 '13' : 4956,
                 '14' : 2649,
                 '15' : 1667,
-                '16' : 579, 
-                '17' : 472, 
-                '18' : 716, 
-                '19' : 436, 
-                '20' : 422, 
-                '21' : 438, 
-                '22' : 194, 
-                '23' : 212, 
-                '24' : 233, 
+                '16' : 579,
+                '17' : 472,
+                '18' : 716,
+                '19' : 436,
+                '20' : 422,
+                '21' : 438,
+                '22' : 194,
+                '23' : 212,
+                '24' : 233,
                 '25' : 357}
-                
+
     seed = id_2_seed[run_id]
     return seed
 
@@ -91,6 +91,8 @@ def get_env_name(proxy_name):
         return 'HalfCheetah-v1'
     if proxy_name == 'reacher':
         return 'Reacher-v1'
+    if proxy_name == 'hopper':
+        return 'Hopper-v1'
     if proxy_name == 'lander':
         return 'LunarLanderContinuous-v2'
 
@@ -126,8 +128,8 @@ def run(env_name, config,
     torch.manual_seed(seed)
 
     num_actions = config.n_samples_per_state
-    run_name = get_writer_name(policy_type, config, seed, use_target, env_name, num_actions, 
-                                run_id=run_id, exp_id=exp_id, 
+    run_name = get_writer_name(policy_type, config, seed, use_target, env_name, num_actions,
+                                run_id=run_id, exp_id=exp_id,
                                 expected_sarsa=expected_sarsa
                                 )
     metrics_writer = MetricsWriter(run_name, runs_dir=runs_dir, score_dir=score_dir)
@@ -286,7 +288,7 @@ if __name__ == '__main__':
     parser.add_argument('--clip_grad', type=int, default=0)
     parser.add_argument('--clip_actions', action='store_true')
     parser.add_argument('--env', required=True, type=str,
-                        choices=['inv-pendulum', 'walker', 'cheetah', 'reacher', 'lander'])
+                        choices=['inv-pendulum', 'walker', 'cheetah', 'reacher', 'lander', 'hopper'])
     parser.add_argument('--run_id', type=str, default='NA')
     parser.add_argument('--exp_id', type=str, default='NA')
     parser.add_argument('--num_actions', type=int, default=100)
