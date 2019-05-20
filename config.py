@@ -11,9 +11,12 @@ class InvertedPendulumConfig:
     normalize_advantages = True
     learn_std = False
     tau = 0.99
-    vcritic_layers = [32,16]
-    qcritic_layers = [48,16]
-    policy_layers = [32,32]
+    # vcritic_layers = [32,16]
+    # qcritic_layers = [48,16]
+    # policy_layers = [32,32]
+    vcritic_layers = [16]
+    qcritic_layers = [48]
+    policy_layers = [16]
     action_std = 0.2
     clip_actions=True
     clip_grad = 1
