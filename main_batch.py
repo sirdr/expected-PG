@@ -91,7 +91,7 @@ def run(env_name, config,
         states, actions, rewards = [], [], []
         total_steps_batch = 0
 
-        while total_steps_batch < 50000:
+        while total_steps_batch < 4000:
 
             observation = env.reset()
             done = False

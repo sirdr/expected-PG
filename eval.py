@@ -80,7 +80,7 @@ def evaluate(load_path, num_episodes=1, record=False, record_dir='recordings'):
             run_eval(env, metrics_writer, policy, num_episodes=1)
 
     else:
-        run_eval(env, metrics_writer, policy, num_episodes=num_episodes)
+        run_eval(env, metrics_writer, policy, vcritic, qcritic, num_episodes=num_episodes)
 
 
 
