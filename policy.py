@@ -16,6 +16,7 @@ import random
 class Policy(nn.Module):
     def __init__(self, env, config, metrics_writer):
         super(Policy, self).__init__()
+        self.clever = config.clever
         self.clip_grad = config.clip_grad
         self.clip_actions = config.clip_actions
         self.env = env
@@ -350,10 +351,11 @@ class PolicyIntegrationTrapezoidal(Policy):
         self.n_samples_per_state = config.n_samples_per_state
         self.num_actions = num_actions
 
-        self.actions = torch.tensor(np.stack(np.meshgrid(*[np.linspace(self.action_space_low[k], self.action_space_high[k], num_actions) for k in range(self.action_space_low.shape[0])], indexing='ij'), axis=-1).reshape(-1, self.action_space_low.shape[0])).float()
-        self.total_actions = self.actions.shape[0]
+        if not self.clever:
+            self.actions = torch.tensor(np.stack(np.meshgrid(*[np.linspace(self.action_space_low[k], self.action_space_high[k], num_actions) for k in range(self.action_space_low.shape[0])], indexing='ij'), axis=-1).reshape(-1, self.action_space_low.shape[0])).float()
+            self.total_actions = self.actions.shape[0]
 
-        self.weight = ((self.action_space_high - self.action_space_low) / (num_actions - 1)).prod()
+            self.weight = ((self.action_space_high - self.action_space_low) / (num_actions - 1)).prod()
 
     def apply_gradient_episode(self, ep_states, ep_actions, ep_rewards, episode, qcritic, vcritic=None):
 
@@ -366,9 +368,26 @@ class PolicyIntegrationTrapezoidal(Policy):
 
         states = torch.tensor(states).float()
 
-        actions = self.actions.repeat(num_states,1)
-
         action_means = self.forward(states)
+
+        std = torch.exp(self.log_std)
+
+        if self.clever:
+            new_action_space_low = action_means - std
+            new_action_space_high = action_means + std
+            new_action_space_low = torch.max(torch.min(new_action_space_low, self.action_space_high), self.action_space_low)
+            new_action_space_high = torch.max(torch.min(new_action_space_high, self.action_space_high), self.action_space_low)
+
+            actions = torch.tensor(np.stack(np.meshgrid(*[np.linspace(self.action_space_low[k], self.action_space_high[k], num_actions) for k in range(self.action_space_low.shape[0])], indexing='ij'), axis=-1).reshape(-1, self.action_space_low.shape[0])).float()
+            total_actions = self.actions.shape[0]
+
+            weight = ((self.action_space_high - self.action_space_low) / (num_actions - 1)).prod()
+        else:
+            actions = self.actions
+            total_actions = self.total_actions
+            weight = self.weight
+
+        actions = actions.repeat(num_states,1)
 
         advantages = qcritic(states, actions).flatten().detach() - vcritic(states).flatten().detach()
 
@@ -377,17 +396,16 @@ class PolicyIntegrationTrapezoidal(Policy):
         if(self.normalize_advantages):
             advantages = (advantages - torch.mean(advantages)) / (.1 + torch.std(advantages))
 
-        std = torch.exp(self.log_std)
         log_probs = torch.sum(torch.distributions.normal.Normal(action_means, std).log_prob(actions), dim=1).flatten()
         probs = torch.exp(log_probs)
 
         integrand = probs * advantages
-        integrand_reshaped = torch.reshape(integrand, [-1, self.total_actions])
+        integrand_reshaped = torch.reshape(integrand, [-1, total_actions])
         integrand_reshaped_avg = (integrand_reshaped[:, :-1] + integrand_reshaped[:, 1:])/2.0
         integrand_avg = torch.reshape(integrand_reshaped_avg, [-1, 1])
-        weighted_integrand = self.weight*integrand_avg
+        weighted_integrand = weight*integrand_avg
 
-        loss = -torch.sum(weighted_integrand) / (num_states * self.total_actions)
+        loss = -torch.sum(weighted_integrand) / (num_states * total_actions)
         loss.backward()
 
         for name, param in self.named_parameters():
