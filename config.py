@@ -30,7 +30,7 @@ class CheetahConfig:
     gamma = 0.9
     eps = 0.01
     # critic_lr = 1e-3
-    critic_lr = 1e-3
+    critic_lr = 1e-2
     policy_lr = 1e-4
     # policy_lr = 5e-5
     policy_lr_decay = 0.95
@@ -41,9 +41,9 @@ class CheetahConfig:
     normalize_advantages = True
     learn_std = False
     tau = .99
-    vcritic_layers = [64,32]
-    qcritic_layers = [64,32]
-    policy_layers = [64,32]
+    vcritic_layers = [64,64]
+    qcritic_layers = [64,64]
+    policy_layers = [64,64]
     action_std = 0.2
     clip_actions=True
     clip_grad = 1

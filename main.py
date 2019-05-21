@@ -138,11 +138,9 @@ def run(env_name, config,
         os.makedirs(score_dir)
 
     env = gym.make(env_name)
-    eval_env = gym.make(env_name)
     print("Using seed {}".format(seed))
 
     env.seed(seed)
-    eval_env.seed(seed)
     torch.manual_seed(seed)
 
     num_actions = config.n_samples_per_state
