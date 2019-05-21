@@ -29,8 +29,7 @@ class InvertedPendulumConfig:
 class CheetahConfig:
     gamma = 0.9
     eps = 0.01
-    # critic_lr = 1e-3
-    critic_lr = 1e-2
+    critic_lr = 1e-3
     policy_lr = 1e-4
     # policy_lr = 5e-5
     policy_lr_decay = 0.95

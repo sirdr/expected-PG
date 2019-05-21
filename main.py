@@ -130,12 +130,12 @@ def run(env_name, config,
     runs_dir = os.path.join(results_dir, 'runs/')
     score_dir = os.path.join(results_dir, 'score/')
 
-    if not os.path.exists(checkpoint_dir, exist_ok=True):
-        os.makedirs(checkpoint_dir)
-    if not os.path.exists(runs_dir, exist_ok=True):
-        os.makedirs(runs_dir)
-    if not os.path.exists(score_dir, exist_ok=True):
-        os.makedirs(score_dir)
+    if not os.path.exists(checkpoint_dir):
+        os.makedirs(checkpoint_dir, exist_ok=True)
+    if not os.path.exists(runs_dir):
+        os.makedirs(runs_dir, exist_ok=True)
+    if not os.path.exists(score_dir):
+        os.makedirs(score_dir, exist_ok=True)
 
     env = gym.make(env_name)
     print("Using seed {}".format(seed))
