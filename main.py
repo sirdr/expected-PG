@@ -115,12 +115,16 @@ def run(env_name, config,
         tuning=False
         ):
     if tuning:
-        tuning_dir = "policy_layers"
+        tuning_dir = "tuning/policy_layers"
         for l in config.policy_layers:
             tuning_dir += "-{}".format(l)
-        tuning_dir += "lr=policy-{}".format(config.policy_lr)
         if policy_type != "reinforce":
-            tuning_dir += "critic-{}".format(config.critic_lr)
+            tuning_dir += "-qcritic_layers"
+            for l in config.qcritic_layers:
+                tuning_dir += "-{}".format(l)
+        tuning_dir += "-lr=policy-{}".format(config.policy_lr)
+        if policy_type != "reinforce":
+            tuning_dir += "-critic-{}".format(config.critic_lr)
         results_dir = os.path.join(results_dir, tuning_dir)
     checkpoint_dir = os.path.join(results_dir, 'checkpoints/')
     runs_dir = os.path.join(results_dir, 'runs/')
@@ -323,6 +327,9 @@ if __name__ == '__main__':
     parser.add_argument('--policy_lr_step_sizes', type=int, default=-1)
     parser.add_argument('--policy_lr', type=float, default=-1)
     parser.add_argument('--critic_lr', type=float, default=-1)
+    parser.add_argument('--policy_layers', nargs='+', default=None)
+    parser.add_argument('--qcritic_layers', nargs='+', default=None)
+    parser.add_argument('--vcritic_layers', nargs='+', default=None)
     parser.add_argument('--action_std', type=float, default=-1)
     parser.add_argument('--learn_std', action='store_true')
     parser.add_argument('--clever', action='store_true')
@@ -371,6 +378,16 @@ if __name__ == '__main__':
         config.max_steps = args.max_steps
     else:
         max_steps = config.max_steps
+
+    if args.policy_layers is not None:
+        policy_layers = list(map(int, args.policy_layers))
+        config.policy_layers = policy_layers
+    if args.qcritic_layers is not None:
+        qcritic_layers = list(map(int, args.qcritic_layers))
+        config.qcritic_layers =qcritic_layers
+    if args.vcritic_layers is not None:
+        vcritic_layers = list(map(int, args.vcritic_layers))
+        config.vcritic_layers = vcritic_layers
 
     start_time = time.time()
 
