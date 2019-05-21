@@ -13,9 +13,10 @@ from vcritic import VCritic
 from metrics import MetricsWriter
 from utils import *
 
-def run_eval(env, policy, num_episodes=5):
+def run_eval(env, policy, num_episodes=5, verbose=False):
 
-    print("Running Eval for {} episodes...".format(num_episodes))
+    if verbose:
+        print("Running Eval for {} episodes...".format(num_episodes))
 
     total_rewards = []
 
@@ -96,7 +97,7 @@ def get_env_name(proxy_name):
     if proxy_name == 'lander':
         return 'LunarLanderContinuous-v2'
     if proxy_name == 'swimmer':
-        return 'Swimmer-v2'
+        return 'Swimmer-v1'
 
 def run(env_name, config,
         policy_type='integrate',
@@ -105,13 +106,22 @@ def run(env_name, config,
         use_policy_target=False,
         use_gpu=False,
         checkpoint_freq=500,
+        eval_freq=100,
         num_episodes=5000,
         run_id='NA',
         exp_id='NA',
         results_dir='',
-        expected_sarsa=False
+        expected_sarsa=False,
+        tuning=False
         ):
-
+    if tuning:
+        tuning_dir = "policy_layers"
+        for l in config.policy_layers:
+            tuning_dir += "-{}".format(l)
+        tuning_dir += "lr=policy-{}".format(config.policy_lr)
+        if policy_type != "reinforce":
+            tuning_dir += "critic-{}".format(config.critic_lr)
+        results_dir = os.path.join(results_dir, tuning_dir)
     checkpoint_dir = os.path.join(results_dir, 'checkpoints/')
     runs_dir = os.path.join(results_dir, 'runs/')
     score_dir = os.path.join(results_dir, 'score/')
@@ -124,9 +134,11 @@ def run(env_name, config,
         os.makedirs(score_dir)
 
     env = gym.make(env_name)
+    eval_env = gym.make(env_name)
     print("Using seed {}".format(seed))
 
     env.seed(seed)
+    eval_env.seed(seed)
     torch.manual_seed(seed)
 
     num_actions = config.n_samples_per_state
@@ -199,6 +211,11 @@ def run(env_name, config,
                     if use_policy_target:
                         soft_update(target_policy, policy, tau=config.tau)
 
+            # if episode % eval_freq == 0:
+            #     eval_reward = run_eval(eval_env, policy, num_episodes=1)
+            #     metrics_writer.write_metric(total_steps, "eval_reward_by_steps", eval_reward)
+
+
         vcritic.apply_gradient_episode(ep_states, ep_rewards)
         if use_qcritic:
             if expected_sarsa:
@@ -212,7 +229,7 @@ def run(env_name, config,
             policy.apply_gradient_episode(ep_states, ep_actions, ep_rewards, episode, vcritic)
 
         total_reward = np.sum(ep_rewards)
-        print("Episode: {0} | Average score in batch: {1}".format(episode, total_reward))
+        print("Episode: {0} Timesteps: {2}| Average score in batch: {1}".format(episode, total_reward, total_steps))
         metrics_writer.write_metric(episode, "total_reward", total_reward)
         metrics_writer.write_metric(total_steps, "total_reward_by_steps", total_reward)
         metrics_writer.write_metric(episode, "policy_std", torch.exp(policy.log_std)[0])
@@ -264,6 +281,181 @@ def run(env_name, config,
                     save_path=save_path,
                     expected_sarsa=expected_sarsa)
 
+# def run(env_name, config,
+#         policy_type='integrate',
+#         seed=7,
+#         use_target=False,
+#         use_policy_target=False,
+#         use_gpu=False,
+#         checkpoint_freq=125000,
+#         eval_freq=100,
+#         max_steps=500000,
+#         run_id='NA',
+#         exp_id='NA',
+#         results_dir='',
+#         expected_sarsa=False
+#         ):
+
+#     checkpoint_dir = os.path.join(results_dir, 'checkpoints/')
+#     runs_dir = os.path.join(results_dir, 'runs/')
+#     score_dir = os.path.join(results_dir, 'score/')
+
+#     if not os.path.exists(checkpoint_dir):
+#         os.makedirs(checkpoint_dir)
+#     if not os.path.exists(runs_dir):
+#         os.makedirs(runs_dir)
+#     if not os.path.exists(score_dir):
+#         os.makedirs(score_dir)
+
+#     env = gym.make(env_name)
+#     eval_env = gym.make(env_name)
+#     print("Using seed {}".format(seed))
+
+#     env.seed(seed)
+#     eval_env.seed(seed)
+#     torch.manual_seed(seed)
+
+#     num_actions = config.n_samples_per_state
+#     run_name = get_writer_name(policy_type, config, seed, use_target, env_name, num_actions,
+#                                 run_id=run_id, exp_id=exp_id,
+#                                 expected_sarsa=expected_sarsa
+#                                 )
+#     metrics_writer = MetricsWriter(run_name, runs_dir=runs_dir, score_dir=score_dir)
+
+#     vcritic = VCritic(env, config)
+#     policy = get_policy(policy_type, env, config, metrics_writer, num_actions)
+
+#     if policy_type == 'integrate' or policy_type == 'mc':
+#         use_qcritic = True
+#         target_qcritic = None
+#         qcritic = QCritic(env, config, metrics_writer)
+#         qcritic.train()
+#         if use_target:
+#             target_qcritic = QCritic(env, config, metrics_writer)
+#             target_qcritic.load_state_dict(qcritic.state_dict())
+#             target_qcritic.eval()
+#         if use_policy_target:
+#             target_policy = get_policy(policy_type, env, config, metrics_writer, num_actions)
+#             target_policy.load_state_dict(policy.state_dict())
+#             target_policy.eval()
+
+#     else:
+#         use_qcritic = False
+
+#     policy.train()
+#     vcritic.train()
+
+#     total_steps = 0
+#     total_episodes = 0
+#     best_eval_reward = -np.inf
+
+#     while total_steps < max_steps:
+
+#         observation = env.reset()
+#         done = False
+#         ep_length = 0
+
+#         ep_states = [observation]
+#         ep_actions = []
+#         ep_rewards = []
+
+#         while not done:
+#             # if episode%50 == 0:
+#             #     env.render()
+#             action = policy.get_action(observation)
+#             observation, reward, done, info = env.step(action)
+#             total_steps += 1
+#             ep_states.append(observation)
+#             ep_actions.append(action)
+#             ep_rewards.append(reward)
+
+#             ep_length += 1
+#             if(len(ep_actions) >= 2):
+#                 if use_qcritic:
+#                     if use_policy_target:
+#                         next_action = target_policy.get_action(observation)
+#                     else:
+#                         next_action = ep_actions[-1]
+#                     if expected_sarsa:
+#                         qcritic.apply_gradient_expected(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2], policy, last_state = False, target_q=target_qcritic)
+#                     else:
+#                         qcritic.apply_gradient(ep_states[-3], ep_actions[-2], ep_rewards[-2], ep_states[-2], next_action, target_q=target_qcritic)
+
+#                     if use_target:
+#                         soft_update(target_qcritic, qcritic, tau=config.tau)
+#                     if use_policy_target:
+#                         soft_update(target_policy, policy, tau=config.tau)
+
+#             if total_steps % eval_freq == 0:
+#                 eval_reward = run_eval(eval_env, policy, num_episodes=1)
+#                 metrics_writer.write_metric(total_steps, "eval_reward_by_steps", eval_reward)
+#                 print("Step: {0} | Single Episode Eval Reward: {1}".format(total_steps, eval_reward))
+
+#             if total_steps % checkpoint_freq == 0 or total_episodes == 0:
+#                 eval_reward = run_eval(eval_env, policy, verbose=True)
+#                 print("Eval Reward: {} | Best Eval Reward: {}".format(eval_reward, best_eval_reward))
+#                 if eval_reward > best_eval_reward:
+#                     best_eval_reward = eval_reward
+
+#                 target_critic = None
+#                 critic = None
+#                 if use_qcritic:
+#                     critic = qcritic
+#                     if use_target:
+#                         target_critic = target_qcritic
+#                 save_path = os.path.join(checkpoint_dir, "{}-timesteps={}-eval_reward={}.tar".format(run_name, total_steps, int(eval_reward)))
+#                 save_checkpoint(policy, seed, env, config, use_qcritic, use_target, policy_type, env_name, num_actions,
+#                                 run_id,
+#                                 exp_id,
+#                                 vcritic=vcritic,
+#                                 critic=critic,
+#                                 target_critic=target_critic,
+#                                 timesteps=total_steps,
+#                                 reward=eval_reward,
+#                                 save_path=save_path,
+#                                 expected_sarsa=expected_sarsa)
+
+#         total_episodes += 1
+
+#         vcritic.apply_gradient_episode(ep_states, ep_rewards)
+#         if use_qcritic:
+#             if expected_sarsa:
+#                 qcritic.apply_gradient_expected(ep_states[-2], ep_actions[-1], ep_rewards[-1], ep_states[-1], policy, last_state = True, target_q=target_qcritic)
+#             else:
+#                 qcritic.apply_gradient(ep_states[-2], ep_actions[-1], ep_rewards[-1], None, None, target_q=target_qcritic)
+
+#         if use_qcritic:
+#             policy.apply_gradient_episode(ep_states, ep_actions, ep_rewards, total_episodes, qcritic, vcritic)
+#         else:
+#             policy.apply_gradient_episode(ep_states, ep_actions, ep_rewards, total_episodes, vcritic)
+
+#         total_reward = np.sum(ep_rewards)
+#         metrics_writer.write_metric(total_episodes, "total_reward", total_reward)
+#         metrics_writer.write_metric(total_steps, "total_reward_by_steps", total_reward)
+#         metrics_writer.write_metric(total_episodes, "policy_std", torch.exp(policy.log_std)[0])
+
+
+#     eval_reward = run_eval(env, policy, verbose=True)
+#     print("Eval Reward: {} | Best Eval Reward: {}".format(eval_reward, best_eval_reward))
+
+#     target_critic = None
+#     critic = None
+#     if use_qcritic:
+#         critic = qcritic
+#         if use_target:
+#             target_critic = target_qcritic
+#     save_path = os.path.join(checkpoint_dir, "{}-timesteps={}-eval_reward={}.tar".format(run_name, total_steps, int(eval_reward)))
+#     save_checkpoint(policy, seed, env, config, use_qcritic, use_target, policy_type, env_name, num_actions,
+#                     run_id,
+#                     exp_id,
+#                     vcritic=vcritic,
+#                     critic=critic,
+#                     target_critic=target_critic,
+#                     reward=eval_reward,
+#                     timesteps=total_steps,
+#                     save_path=save_path,
+#                     expected_sarsa=expected_sarsa)
+
 if __name__ == '__main__':
 
     # TODO: 7000 episodes each, ~10 iterations
@@ -295,8 +487,10 @@ if __name__ == '__main__':
     parser.add_argument('--exp_id', type=str, default='NA')
     parser.add_argument('--num_actions', type=int, default=100)
     parser.add_argument('--num_episodes', type=int, default=0)
+    parser.add_argument('--max_steps', type=int, default=0)
     parser.add_argument('--results_dir', type=str, default='')
     parser.add_argument('--checkpoint_freq', type=int, default=500)
+    parser.add_argument('--eval_freq', type=int, default=100)
     parser.add_argument('--policy_lr_decay', type=float, default=-1)
     parser.add_argument('--critic_lr_decay', type=float, default=-1)
     parser.add_argument('--critic_lr_step_sizes', type=int, default=-1)
@@ -306,6 +500,7 @@ if __name__ == '__main__':
     parser.add_argument('--action_std', type=float, default=-1)
     parser.add_argument('--learn_std', action='store_true')
     parser.add_argument('--clever', action='store_true')
+    parser.add_argument('--tuning', action='store_true')
     #parser.add_argument('--model_path', required=True, type=str)
 
     args = parser.parse_args()
@@ -345,8 +540,29 @@ if __name__ == '__main__':
     else:
         num_episodes = config.num_episodes
 
+    if args.max_steps > 0:
+        max_steps = args.max_steps
+        config.max_steps = args.max_steps
+    else:
+        max_steps = config.max_steps
+
     start_time = time.time()
 
+    # if args.old:
+    #     run_old(env_name, config,
+    #         policy_type=args.policy,
+    #         seed=seed,
+    #         use_target=args.use_target,
+    #         use_policy_target=args.use_policy_target,
+    #         use_gpu=args.use_gpu,
+    #         run_id=args.run_id,
+    #         exp_id=args.exp_id,
+    #         num_episodes=num_episodes,
+    #         results_dir=args.results_dir,
+    #         expected_sarsa=args.expected_sarsa,
+    #         checkpoint_freq=args.checkpoint_freq
+    #         )
+    # else:
     run(env_name, config,
         policy_type=args.policy,
         seed=seed,
@@ -358,7 +574,8 @@ if __name__ == '__main__':
         num_episodes=num_episodes,
         results_dir=args.results_dir,
         expected_sarsa=args.expected_sarsa,
-        checkpoint_freq=args.checkpoint_freq
+        checkpoint_freq=args.checkpoint_freq,
+        tuning=args.tuning
         )
 
     end_time = time.time()

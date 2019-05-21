@@ -13,16 +13,17 @@ class InvertedPendulumConfig:
     normalize_advantages = True
     learn_std = False
     tau = 0.99
-    vcritic_layers = [16]
-    qcritic_layers = [48]
-    policy_layers = [16]
-    # vcritic_layers = [32,32]
-    # qcritic_layers = [32,32]
-    # policy_layers = [32,32]
+    # vcritic_layers = [16]
+    # qcritic_layers = [48]
+    # policy_layers = [16]
+    vcritic_layers = [64,16]
+    qcritic_layers = [64,16]
+    policy_layers = [64,16]
     action_std = 0.2
     clip_actions=True
     clip_grad = 1
     num_episodes = 4000
+    max_steps = 200000
     clever=False
 
 class CheetahConfig:
@@ -40,13 +41,14 @@ class CheetahConfig:
     normalize_advantages = True
     learn_std = False
     tau = .99
-    vcritic_layers = [32,32]
-    qcritic_layers = [32,32]
-    policy_layers = [32,32]
+    vcritic_layers = [64,32]
+    qcritic_layers = [64,32]
+    policy_layers = [64,32]
     action_std = 0.2
     clip_actions=True
     clip_grad = 1
     num_episodes = 5000
+    max_steps = 200000
     clever=False
 
 class WalkerConfig:
@@ -69,6 +71,7 @@ class WalkerConfig:
     clip_actions=True
     clip_grad = 2
     num_episodes = 5000
+    max_steps = 200000
     clever=False
 
 class HopperConfig:
@@ -91,13 +94,14 @@ class HopperConfig:
     clip_actions=True
     clip_grad = 1
     num_episodes = 5000
+    max_steps = 200000
     clever=False
 
 class ReacherConfig:
     gamma = 1.00
     eps = 0.01
-    critic_lr = 1e-2
-    policy_lr = 1e-3
+    critic_lr = 1e-3
+    policy_lr = 1e-5
     policy_lr_decay = 0.95
     critic_lr_decay = 0.95
     policy_lr_step_size = 200
@@ -109,13 +113,14 @@ class ReacherConfig:
     # vcritic_layers = [32,16]
     # qcritic_layers = [48,16]
     # policy_layers = [32,32]
-    vcritic_layers = [32,32]
-    qcritic_layers = [32,32]
-    policy_layers = [32,32]
-    action_std = 0.2
+    vcritic_layers = [32]
+    qcritic_layers = [32]
+    policy_layers = [32]
+    action_std = 0.05
     clip_actions=True
     clip_grad = 1
     num_episodes = 5000
+    max_steps = 200000
     clever=False
 
 class LanderConfig:
@@ -138,6 +143,7 @@ class LanderConfig:
     clip_actions=True
     clip_grad = 1
     num_episodes = 5000
+    max_steps = 200000
     clever=False
 
 class SwimmerConfig:
@@ -163,4 +169,5 @@ class SwimmerConfig:
     clip_actions=True
     clip_grad = 1
     num_episodes = 5000
+    max_steps = 200000
     clever=False

@@ -195,7 +195,7 @@ class PolicyMC(Policy):
         n_states = len(ep_states)
         states = torch.tensor(np.array([state for state in ep_states[:-1]])).float()
         action_means = self.forward(states).repeat(self.n_samples_per_state, 1)
-        action_means = torch.max(torch.min(action_means, self.action_space_high), self.action_space_low)
+        #action_means = torch.max(torch.min(action_means, self.action_space_high), self.action_space_low)
 
         std = torch.exp(self.log_std)
         dist = torch.distributions.normal.Normal(action_means, std)

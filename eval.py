@@ -64,7 +64,7 @@ def evaluate(load_path, num_episodes=1, record=False, record_dir='recordings'):
     run_name = get_writer_name(policy_type, config, seed, use_target, env_name, num_actions, run_id=run_id, exp_id=exp_id, expected_sarsa=expected_sarsa, evaluation=True)
     metrics_writer = MetricsWriter(run_name)
 
-    policy = get_policy(policy_type, env, config, metrics_writer, num_actions=num_actions, optimizer)
+    policy = get_policy(policy_type, env, config, metrics_writer, num_actions=num_actions)
     policy.load_state_dict(checkpoint['policy_state_dict'])
     policy.optimizer.load_state_dict(checkpoint['policy_optimizer_state_dict'])
 
