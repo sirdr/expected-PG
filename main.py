@@ -95,6 +95,8 @@ def get_env_name(proxy_name):
         return 'Hopper-v1'
     if proxy_name == 'lander':
         return 'LunarLanderContinuous-v2'
+    if proxy_name == 'swimmer':
+        return 'Swimmer-v2'
 
 def run(env_name, config,
         policy_type='integrate',
@@ -288,7 +290,7 @@ if __name__ == '__main__':
     parser.add_argument('--clip_grad', type=int, default=0)
     parser.add_argument('--clip_actions', action='store_true')
     parser.add_argument('--env', required=True, type=str,
-                        choices=['inv-pendulum', 'walker', 'cheetah', 'reacher', 'lander', 'hopper'])
+                        choices=['inv-pendulum', 'walker', 'cheetah', 'reacher', 'lander', 'hopper', 'swimmer'])
     parser.add_argument('--run_id', type=str, default='NA')
     parser.add_argument('--exp_id', type=str, default='NA')
     parser.add_argument('--num_actions', type=int, default=100)

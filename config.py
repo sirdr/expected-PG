@@ -139,3 +139,28 @@ class LanderConfig:
     clip_grad = 1
     num_episodes = 5000
     clever=False
+
+class SwimmerConfig:
+    gamma = 0.99
+    eps = 0.01
+    critic_lr = 1e-2
+    policy_lr = 1e-3
+    policy_lr_decay = 0.95
+    critic_lr_decay = 0.95
+    policy_lr_step_size = 200
+    critic_lr_step_size = 200000
+    n_samples_per_state = 100
+    normalize_advantages = True
+    learn_std = False
+    tau = .99
+    # vcritic_layers = [32,16]
+    # qcritic_layers = [48,16]
+    # policy_layers = [32,32]
+    vcritic_layers = [32,32]
+    qcritic_layers = [32,32]
+    policy_layers = [32,32]
+    action_std = 0.2
+    clip_actions=True
+    clip_grad = 1
+    num_episodes = 5000
+    clever=False
