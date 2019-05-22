@@ -109,9 +109,11 @@ if __name__ == '__main__':
         files = [os.path.join(args.model_path, f) for f in files]
     else:
         files = [args.model_path]
-    
+    count = 0
     for file in files:
-        print(file)
 
-        # if "episode={}".format(checkpoint_episode) in file: 
+        if "episode={}".format(checkpoint_episode) in file: 
+            print(file)
+            count += 1
         #     evaluate(file, num_episodes=num_episodes, record=record)
+    print(count)
