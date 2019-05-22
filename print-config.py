@@ -33,6 +33,6 @@ if __name__ == '__main__':
     checkpoint = load_checkpoint(file)
     config = checkpoint['config']
 
-    print(config)
+    print(vars(config))
 
     
