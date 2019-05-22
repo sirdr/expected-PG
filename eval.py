@@ -66,7 +66,8 @@ def evaluate(load_path, outdir="", num_episodes=1, record=False, record_dir='rec
     if not os.path.exists(runs_dir):
         os.makedirs(runs_dir, exist_ok=True)
 
-    run_name = get_writer_name(policy_type, config, seed, use_target, env_name, num_actions, run_id=run_id, exp_id=exp_id, expected_sarsa=expected_sarsa, evaluation=True)
+    #run_name = get_writer_name(policy_type, config, seed, use_target, env_name, num_actions, run_id=run_id, exp_id=exp_id, expected_sarsa=expected_sarsa, evaluation=True)
+    run_name = load_path.split("/")[-1] + "-eval"
     metrics_writer = MetricsWriter(run_name, runs_dir=runs_dir, runs_only=True)
 
     policy = get_policy(policy_type, env, config, metrics_writer, num_actions=num_actions)
@@ -120,7 +121,7 @@ if __name__ == '__main__':
     else:
         files = [args.model_path]
         outdir = args.outdir
-        
+
     for file in files:
 
         if "episode={}".format(args.checkpoint_episode) in file:
