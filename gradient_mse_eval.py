@@ -88,7 +88,8 @@ def evaluate(load_path, num_episodes=1, record=False, record_dir='recordings'):
     policy_reinforce.eval()
 
     mc_policies = {}
-    for num_actions in [1,2,4,8,16,32,64,128,256,512]:
+    #for num_actions in [1,2,4,8,16,32,64,128,256,512]:
+    for num_actions in [256]:
         policy = PolicyMC(env, config, metrics_writer, num_actions=num_actions)
         policy.load_state_dict(checkpoint['policy_state_dict'])
         policy.optimizer.load_state_dict(checkpoint['policy_optimizer_state_dict'])
