@@ -286,18 +286,9 @@ def run(env_name, config,
 
 if __name__ == '__main__':
 
-    # TODO: 7000 episodes each, ~10 iterations
-    # TODO: Vary sample size for MC and Fixed Grid (1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024)
-    # TODO: Simpsons 2000, 10 iterations (1, 5, 10, 20, 100, 1000)
 
-    # TODO: figure out how to run using GPU
-
-    # TODO: run integrate to investigate unlearning
-    # TODO: add gradient comparison script
-
-    # TODO: keep track of num samples seen
-    # TODO: keep track of timesteps
-    # TODO: normalize rewards
+    # TODO: Make table of sample efficiency - need to define convergence
+    # TODO: Run cheetah with learning std
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--policy', required=True, type=str,
