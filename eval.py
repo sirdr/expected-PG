@@ -95,6 +95,7 @@ if __name__ == '__main__':
     # TODO: add checkpointing
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_path', required=True, type=str)
+    parser.add_argument('--checkpoint_episode', type=int, default=4999)
     parser.add_argument('--num_episodes', type=int, default=1)
     parser.add_argument('--record', type=int, default=0)
 
@@ -103,5 +104,14 @@ if __name__ == '__main__':
     num_episodes = max(args.num_episodes, 1)
     record = max(args.record, 0)
 
+    if os.path.isdir(args.model_path):
+        files = os.listdir(args.model_path)
+        files = [os.path.join(args.model_path, f) for f in files]
+    else:
+        files = [args.model_path]
+    
+    for file in files:
+        print(file)
 
-    evaluate(args.model_path, num_episodes=num_episodes, record=record)
+        # if "episode={}".format(checkpoint_episode) in file: 
+        #     evaluate(file, num_episodes=num_episodes, record=record)
