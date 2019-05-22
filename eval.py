@@ -40,7 +40,7 @@ def run_eval(env, metrics_writer, policy, num_episodes=1):
 
 
 
-def evaluate(load_path, num_episodes=1, record=False, record_dir='recordings'):
+def evaluate(load_path, outdir="", num_episodes=1, record=False, record_dir='recordings'):
 
     checkpoint = load_checkpoint(load_path)
     seed = checkpoint['seed']
@@ -61,8 +61,13 @@ def evaluate(load_path, num_episodes=1, record=False, record_dir='recordings'):
 
     torch.manual_seed(seed)
 
+    runs_dir = os.path.join(outdir)
+
+    if not os.path.exists(runs_dir):
+        os.makedirs(runs_dir, exist_ok=True)
+
     run_name = get_writer_name(policy_type, config, seed, use_target, env_name, num_actions, run_id=run_id, exp_id=exp_id, expected_sarsa=expected_sarsa, evaluation=True)
-    metrics_writer = MetricsWriter(run_name)
+    metrics_writer = MetricsWriter(run_name, runs_dir=runs_dir, runs_only=True)
 
     policy = get_policy(policy_type, env, config, metrics_writer, num_actions=num_actions)
     policy.load_state_dict(checkpoint['policy_state_dict'])
@@ -98,6 +103,7 @@ if __name__ == '__main__':
     parser.add_argument('--checkpoint_episode', type=int, default=4999)
     parser.add_argument('--num_episodes', type=int, default=1)
     parser.add_argument('--record', type=int, default=0)
+    parser.add_argument('--outdir', type=str, default="")
 
     args = parser.parse_args()
 
@@ -107,11 +113,16 @@ if __name__ == '__main__':
     if os.path.isdir(args.model_path):
         files = os.listdir(args.model_path)
         files = [os.path.join(args.model_path, f) for f in files]
+        if args.outdir == "":
+            outdir = args.model_path
+        else:
+            outdir = args.outdir
     else:
         files = [args.model_path]
-    count = 0
+        outdir = args.outdir
+        
     for file in files:
 
         if "episode={}".format(args.checkpoint_episode) in file:
             print("Evaluating {}".format(file)) 
-            evaluate(file, num_episodes=num_episodes, record=record)
+            evaluate(file, outdir=outdir, num_episodes=num_episodes, record=record)
