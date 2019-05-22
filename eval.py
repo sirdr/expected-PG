@@ -112,8 +112,6 @@ if __name__ == '__main__':
     count = 0
     for file in files:
 
-        if "episode={}".format(args.checkpoint_episode) in file: 
-            print(file)
-            count += 1
-        #     evaluate(file, num_episodes=num_episodes, record=record)
-    print(count)
+        if "episode={}".format(args.checkpoint_episode) in file:
+            print("Evaluating {}".format(file)) 
+            evaluate(file, num_episodes=num_episodes, record=record)
