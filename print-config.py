@@ -35,6 +35,26 @@ if __name__ == '__main__':
 
     print("policy_layers: {}".format(config.policy_layers))
     print("qcritic_layers: {}".format(config.qcritic_layers))
+    print("vcritic_layers: {}".format(config.vcritic_layers))
+    print("gamma: {}".format(config.gamma))
+    print("eps: {}".format(config.eps))
+    print("gamma: {}".format(config.gamma))
+    print("critic_lr: {}".format(config.critic_lr))
+    print("policy_lr: {}".format(config.policy_lr))
+    print("policy_lr_decay: {}".format(config.policy_lr_decay))
+    print("critic_lr_decay: {}".format(config.critic_lr_decay))
+    print("policy_lr_step_size: {}".format(config.policy_lr_step_size))
+    print("critic_lr_step_size: {}".format(config.critic_lr_step_size))
+    print("n_samples_per_state: {}".format(config.n_samples_per_state))
+    print("normalize_advantages: {}".format(config.normalize_advantages))
+    print("learn_std: {}".format(config.learn_std))
+    print("tau: {}".format(config.tau))
+    print("action_std: {}".format(config.action_std))
+    print("clip_actions: {}".format(config.clip_actions))
+    print("clip_grad: {}".format(config.clip_grad))
+    print("num_episodes: {}".format(config.num_episodes))
+    print("max_steps: {}".format(config.max_steps))
+    print("clever: {}".format(config.clever))
 
 
     
