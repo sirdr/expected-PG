@@ -67,7 +67,7 @@ def evaluate(load_path, outdir="", num_episodes=1, record=False, record_dir='rec
         os.makedirs(runs_dir, exist_ok=True)
 
     #run_name = get_writer_name(policy_type, config, seed, use_target, env_name, num_actions, run_id=run_id, exp_id=exp_id, expected_sarsa=expected_sarsa, evaluation=True)
-    run_name = load_path.split("/")[-1] + "-eval"
+    run_name = load_path.split("/")[-1].split('.tar')[0] + "-eval"
     metrics_writer = MetricsWriter(run_name, runs_dir=runs_dir, runs_only=True)
 
     policy = get_policy(policy_type, env, config, metrics_writer, num_actions=num_actions)
